@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
-namespace AlejoF.Notes
+namespace Company.Function
 {
     public static class HttpTriggerCSharp
     {
