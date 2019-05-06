@@ -5,6 +5,8 @@
     <RootNamespace>alejof_notes_api</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="flurl.http" Version="2.4.1" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" Version="3.0.0" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.24" />
   </ItemGroup>
   <ItemGroup>

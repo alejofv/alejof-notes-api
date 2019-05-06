@@ -1,0 +1,34 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: 'Ubuntu-16.04'
+
+steps:
+- task: DotNetCoreInstaller@0
+  displayName: 'Install dotnet'
+  inputs:
+    version: '2.2.202'
+    packageType: sdk
+
+- script: 'dotnet publish -c Release -o $(build.artifactstagingdirectory)/functionapp'
+  displayName: 'dotnet publish'
+
+- task: ArchiveFiles@2
+  displayName: Archive
+  inputs:
+    archiveType: zip
+    rootFolderOrFile: '$(build.artifactstagingdirectory)/functionapp'
+    includeRootFolder: false
+    replaceExistingArchive: true
+    archiveFile: '$(build.artifactstagingdirectory)/funcapp.$(Build.BuildNumber).zip'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(build.artifactstagingdirectory)/funcapp.$(Build.BuildNumber).zip'
+    ArtifactName: 'drop'
