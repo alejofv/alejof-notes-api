@@ -1,4 +1,5 @@
 using Alejof.Notes.Functions.Impl.TableStorage;
+using Humanizer;
 
 namespace Alejof.Notes.Functions.Mapping
 {
@@ -13,7 +14,8 @@ namespace Alejof.Notes.Functions.Mapping
                 Slug = entity.Slug,
                 Content = entity.Content,
                 Source = entity.Source,
-                Date = entity.Date,
+                Date = entity.Date.ToString("yyyy-MM-dd"),
+                DateText = entity.Date.Humanize(utcDate: true),
             };
     }
 }
