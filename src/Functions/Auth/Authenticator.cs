@@ -45,7 +45,7 @@ namespace Alejof.Notes.Functions.Auth
 
                     ValidateAudience = true,
                     ValidAudience = tokenSettings.ValidAudience,
-                                        
+
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new RsaSecurityKey(rsa),
 

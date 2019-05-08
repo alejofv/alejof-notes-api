@@ -1,4 +1,5 @@
-using Alejof.Notes.Functions.Impl.TableStorage;
+using System;
+using Alejof.Notes.Functions.TableStorage;
 using Humanizer;
 
 namespace Alejof.Notes.Functions.Mapping
@@ -8,7 +9,7 @@ namespace Alejof.Notes.Functions.Mapping
         public static Models.Note ToModel(this NoteEntity entity) =>
             new Models.Note
             {
-                Id = int.Parse(entity.RowKey),
+                Id = entity.RowKey,
                 Type = entity.Type,
                 Title = entity.Title,
                 Slug = entity.Slug,
@@ -17,5 +18,16 @@ namespace Alejof.Notes.Functions.Mapping
                 Date = entity.Date.ToString("yyyy-MM-dd"),
                 DateText = entity.Date.Humanize(utcDate: true),
             };
+            
+        public static NoteEntity CopyModel(this NoteEntity entity, Models.Note note)
+        {
+            entity.Title = note.Title;
+            entity.Type = note.Type;
+            entity.Slug = note.Slug;
+            entity.Content = note.Content;
+            entity.Source = note.Source;
+
+            return entity;
+        }
     }
 }

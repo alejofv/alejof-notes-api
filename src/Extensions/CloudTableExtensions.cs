@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage.Table;
 
-namespace Alejof.Notes.Functions.Extensions
+namespace Alejof.Notes.Extensions
 {
     public static class CloudTableExtensions
     {
@@ -25,5 +25,45 @@ namespace Alejof.Notes.Functions.Extensions
             var segment = await table.ExecuteQuerySegmentedAsync(query, null);
             return segment.ToList();
         }
+
+        public static async Task<bool> InsertAsync(this CloudTable table, ITableEntity entity)
+        {
+            var operation = TableOperation.Insert(entity);
+            var result = await table.ExecuteAsync(operation);
+
+            return result.IsSuccess();
+        }
+
+        public static async Task<bool> ReplaceAsync(this CloudTable table, ITableEntity entity, bool insertIfNotFound = false)
+        {
+            var operation = insertIfNotFound ?
+                TableOperation.InsertOrReplace(entity)
+                : TableOperation.Replace(entity);
+
+            var result = await table.ExecuteAsync(operation);
+
+            return result.IsSuccess();
+        }
+
+        public static async Task<bool> MergeAsync(this CloudTable table, ITableEntity entity, bool insertIfNotFound = false)
+        {
+            var operation = insertIfNotFound ?
+                TableOperation.InsertOrMerge(entity)
+                : TableOperation.Merge(entity);
+
+            var result = await table.ExecuteAsync(operation);
+
+            return result.IsSuccess();
+        }
+
+        public static async Task<bool> DeleteAsync(this CloudTable table, ITableEntity entity)
+        {
+            var operation = TableOperation.Delete(entity);
+            var result = await table.ExecuteAsync(operation);
+
+            return result.IsSuccess();
+        }
+
+        public static bool IsSuccess(this TableResult result) => result.HttpStatusCode >= 200 && result.HttpStatusCode < 300;
     }
 }
