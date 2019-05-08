@@ -3,35 +3,28 @@ using System.Linq;
 using System.Threading.Tasks;
 using Alejof.Notes.Functions.Extensions;
 using Alejof.Notes.Functions.Impl.TableStorage;
+using Alejof.Notes.Functions.Infrastructure;
 using Alejof.Notes.Functions.Mapping;
+using Alejof.Notes.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage;
 
 namespace Alejof.Notes.Functions.Impl
 {
-    public class NotesFunction
+    public class NotesFunction : IFunction
     {
-        private readonly ILogger _log;
-        private readonly Settings.FunctionSettings _settings;
-        private readonly CloudStorageAccount _storageAccount;
-
-        public NotesFunction(
-            ILogger log,
-            Settings.FunctionSettings settings)
-        {
-            this._log = log;
-            this._settings = settings;
-            
-            this._storageAccount = CloudStorageAccount.Parse(_settings.StorageConnectionString);
-        }
+        public ILogger Log { get; set; }
+        public FunctionSettings Settings { get; set; }
 
         public async Task<IReadOnlyCollection<object>> GetNotes(bool published)
         {
-            var tableClient = _storageAccount.CreateCloudTableClient();
+            var storageAccount = CloudStorageAccount.Parse(Settings.StorageConnectionString);
+            
+            var tableClient = storageAccount.CreateCloudTableClient();
             var table = tableClient.GetTableReference(NoteEntity.TableName);
 
             var key = NoteEntity.GetDefaultKey(published);
-            _log.LogInformation($"Getting notes from storage. TableName: {NoteEntity.TableName}, Key: {key}");
+            Log.LogInformation($"Getting notes from storage. TableName: {NoteEntity.TableName}, Key: {key}");
 
             var notes = await table.ScanAsync<NoteEntity>(key);
             return notes
