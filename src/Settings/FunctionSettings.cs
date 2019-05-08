@@ -12,5 +12,6 @@ namespace Alejof.Notes.Settings
         public string KeyModulus { get; set; }
         public string KeyExponent { get; set; }
         public string ValidIssuer { get; set; }
+        public string ValidAudience { get; set; }
     }
 }

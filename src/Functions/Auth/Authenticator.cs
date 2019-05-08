@@ -42,12 +42,14 @@ namespace Alejof.Notes.Functions.Auth
                     
                     ValidateIssuer = true,
                     ValidIssuer = tokenSettings.ValidIssuer,
+
+                    ValidateAudience = true,
+                    ValidAudience = tokenSettings.ValidAudience,
                                         
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new RsaSecurityKey(rsa),
 
                     ValidateLifetime = true,
-                    ValidateAudience = false,
                 };
 
                 var handler = new JwtSecurityTokenHandler();
