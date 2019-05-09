@@ -19,7 +19,7 @@ namespace Alejof.Notes.Functions.TableStorage
         public string Content { get; set; }
         public string Source { get; set; }
 
-        public DateTime Date => RefDate - TimeSpan.FromSeconds(int.Parse(RowKey));
+        public DateTime Date => RefDate - TimeSpan.FromSeconds(double.Parse(RowKey));
 
         public static NoteEntity New(bool published, DateTime date)
         {

@@ -24,74 +24,45 @@ namespace Alejof.Notes.Functions
         public ILogger Log { get; set; }
         public FunctionSettings Settings { get; set; }
 
-        public async Task<IReadOnlyCollection<Note>> GetNotes(bool published)
+        public async Task<IReadOnlyCollection<Note>> GetNotes()
         {
             var table = GetTable(NoteEntity.TableName);
 
-            var key = NoteEntity.GetDefaultKey(published);
-            Log.LogInformation($"Getting notes from storage. TableName: {NoteEntity.TableName}, Key: {key}");
+            var noteKey = NoteEntity.GetDefaultKey(true);
+            Log.LogInformation($"Getting notes from storage. TableName: {NoteEntity.TableName}, Key: {noteKey}");
 
-            var notes = await table.ScanAsync<NoteEntity>(key);
+            var notes = await table.ScanAsync<NoteEntity>(noteKey);
             return notes
-                .Select(n => n.ToModel())
+                .Select(n => n.ToListModel())
                 .ToList()
                 .AsReadOnly();
         }
 
-        public async Task<Result> CreateDraft(Note note)
+        public async Task<Note> GetNote(string id)
         {
             var table = GetTable(NoteEntity.TableName);
 
-            var noteEntity = NoteEntity
-                .New(false, DateTime.UtcNow)
-                .CopyModel(note);
+            var noteKey = NoteEntity.GetDefaultKey(true);
+            var note = await table.RetrieveAsync<NoteEntity>(noteKey, id);
 
-            var result = await table.InsertAsync(noteEntity);
-            if (!result)
-                return note.AsFailedResult<Note>("InsertAsync failed");
-
-            return noteEntity
-                .ToModel()
-                .AsOkResult();
+            return note?.ToModel();
         }
 
-        public async Task<Result> EditDraft(Note note)
+        public async Task<Result> UnpublishNote(string id)
         {
             var table = GetTable(NoteEntity.TableName);
 
-            // Assume the note is not published
-            var draftKey = NoteEntity.GetDefaultKey(false);
-            var noteEntity = await table.RetrieveAsync<NoteEntity>(draftKey, note.Id);
-            
-            if (noteEntity == null)
-                return note.Id.AsFailedResult("NotFound");
-
-            noteEntity.CopyModel(note);
-
-            var result = await table.ReplaceAsync(noteEntity);
-            if (!result)
-                return note.AsFailedResult<Note>("ReplaceAsync failed");
-
-            return noteEntity
-                .ToModel()
-                .AsOkResult();
-        }
-
-        public async Task<Result> PublishDraft(string id)
-        {
-            var table = GetTable(NoteEntity.TableName);
-
-            var draftKey = NoteEntity.GetDefaultKey(false);
-            var noteEntity = await table.RetrieveAsync<NoteEntity>(draftKey, id);
+            var noteKey = NoteEntity.GetDefaultKey(true);
+            var noteEntity = await table.RetrieveAsync<NoteEntity>(noteKey, id);
 
             if (noteEntity == null)
                 return id.AsFailedResult("NotFound");
 
-            var publishedEntity = NoteEntity
-                .New(true, DateTime.UtcNow)
+            var draftEntity = NoteEntity
+                .New(false, DateTime.UtcNow)
                 .CopyModel(noteEntity.ToModel());
 
-            var result = await table.InsertAsync(publishedEntity);
+            var result = await table.InsertAsync(draftEntity);
             if (!result)
                 return id.AsFailedResult("InsertAsync failed");
 
@@ -109,62 +80,40 @@ namespace Alejof.Notes.Functions
         
         // Azure Functions
 
-        [FunctionName("NotesGet")]
+        [FunctionName("NotesGetAll")]
         public static async Task<IActionResult> GetNotesFunction(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "notes")] HttpRequest req, ILogger log)
-        {
+        {                
             log.LogInformation($"C# Http trigger function executed: {nameof(GetNotesFunction)}");
 
             return await HttpRunner.For<NotesFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.GetNotes(true));
-        }
-        
-        [FunctionName("NotesGetDrafts")]
-        public static async Task<IActionResult> GetDraftsFunction(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "notes/drafts")] HttpRequest req, ILogger log)
-        {                
-            log.LogInformation($"C# Http trigger function executed: {nameof(GetDraftsFunction)}");
-
-            return await HttpRunner.For<NotesFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
-                .ExecuteAsync(f => f.GetNotes(false));
+                .ExecuteAsync(f => f.GetNotes());
         }
 
-        [FunctionName("NotesCreateDraft")]
-        public static async Task<IActionResult> CreateDraftFunction(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "notes/drafts")] HttpRequest req, ILogger log)
+        [FunctionName("NotesGet")]
+        public static async Task<IActionResult> GetNoteFunction(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "notes/{id}")] HttpRequest req, ILogger log, string id)
         {
-            log.LogInformation($"C# Http trigger function executed: {nameof(CreateDraftFunction)}");
-
-            var note = await req.GetJsonBodyAsAsync<Note>();
-            if (note == null)
-                return new BadRequestResult();
+            log.LogInformation($"C# Http trigger function executed: {nameof(GetNoteFunction)}");
 
             return await HttpRunner.For<NotesFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.CreateDraft(note));
+                .ExecuteAsync(f => f.GetNote(id));
         }
 
-        [FunctionName("NotesEditDraft")]
-        public static async Task<IActionResult> EditDraftFunction(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "notes/drafts/{id}")] HttpRequest req, ILogger log, string id)
+        [FunctionName("NotesUnpublish")]
+        public static async Task<IActionResult> UnpublishNoteFunction(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "unpublish/{id}")] HttpRequest req, ILogger log, string id)
         {
-            log.LogInformation($"C# Http trigger function executed: {nameof(EditDraftFunction)}");
-
-            var note = await req.GetJsonBodyAsAsync<Note>();
-            if (note == null)
-                return new BadRequestResult();
-
-            note.Id = id;
+            log.LogInformation($"C# Http trigger function executed: {nameof(UnpublishNoteFunction)}");
 
             return await HttpRunner.For<NotesFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.EditDraft(note));
+                .ExecuteAsync(f => f.UnpublishNote(id));
         }
     }
 }
