@@ -16,7 +16,6 @@ namespace Alejof.Notes.Functions.Mapping
                 Type = entity.Type,
                 Title = entity.Title,
                 Source = entity.Source.FirstUrl(),
-                Date = entity.Date.ToString("yyyy-MM-dd"),
                 DateText = entity.Date.Humanize(utcDate: true),
             };
 
@@ -29,7 +28,6 @@ namespace Alejof.Notes.Functions.Mapping
                 Slug = entity.Slug,
                 Content = entity.Content,
                 Source = entity.Source,
-                Date = entity.Date.ToString("yyyy-MM-dd"),
                 DateText = entity.Date.Humanize(utcDate: true),
             };
             

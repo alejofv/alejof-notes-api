@@ -11,6 +11,7 @@ namespace Alejof.Notes.Settings
             return new FunctionSettings
             {
                 StorageConnectionString = GetSetting("AzureWebJobsStorage"),
+                FunctionEnvironment = GetSetting("FunctionEnvironment"),
                 TokenSettings = new TokenSettings
                 {
                     KeyModulus = getTokenSetting("KeyModulus"),
