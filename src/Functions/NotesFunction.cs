@@ -24,15 +24,29 @@ namespace Alejof.Notes.Functions
         public ILogger Log { get; set; }
         public FunctionSettings Settings { get; set; }
 
-        public async Task<IReadOnlyCollection<Note>> GetNotes()
+        private CloudTable _table = null;
+        private CloudTable Table
         {
-            var table = GetTable(NoteEntity.TableName);
+            get
+            {
+                if (_table == null)
+                {
+                    var storageAccount = CloudStorageAccount.Parse(Settings.StorageConnectionString);
+                    var tableClient = storageAccount.CreateCloudTableClient();
 
-            var noteKey = NoteEntity.GetDefaultKey(true);
-            Log.LogInformation($"Getting notes from storage. TableName: {NoteEntity.TableName}, Key: {noteKey}");
+                    _table = tableClient.GetTableReference(NoteEntity.TableName);
+                }
 
-            var notes = await table.ScanAsync<NoteEntity>(noteKey);
-            return notes
+                return _table;
+            }
+        }
+
+        public async Task<IReadOnlyCollection<Note>> GetNotes(bool published)
+        {
+            var key = NoteEntity.GetDefaultKey(published);
+            var entities = await Table.ScanAsync<NoteEntity>(key);
+            
+            return entities
                 .Select(n => n.ToListModel())
                 .ToList()
                 .AsReadOnly();
@@ -40,42 +54,59 @@ namespace Alejof.Notes.Functions
 
         public async Task<Note> GetNote(string id)
         {
-            var table = GetTable(NoteEntity.TableName);
-
-            var noteKey = NoteEntity.GetDefaultKey(true);
-            var note = await table.RetrieveAsync<NoteEntity>(noteKey, id);
-
-            return note?.ToModel();
+            var entity = await GetDraft(id);
+            return entity?.ToModel();
         }
 
-        public async Task<Result> UnpublishNote(string id)
+        public async Task<Result> CreateNote(Note note)
         {
-            var table = GetTable(NoteEntity.TableName);
+            var entity = NoteEntity
+                .New(false, DateTime.UtcNow)
+                .CopyModel(note);
 
-            var noteKey = NoteEntity.GetDefaultKey(true);
-            var noteEntity = await table.RetrieveAsync<NoteEntity>(noteKey, id);
+            var result = await Table.InsertAsync(entity);
+            if (!result)
+                return note.AsFailedResult<Note>("InsertAsync failed");
 
-            if (noteEntity == null)
+            return entity
+                .ToListModel()
+                .AsOkResult();
+        }
+
+        public async Task<Result> EditNote(Note note)
+        {
+            var entity = await GetDraft(note.Id);
+            if (entity == null)
+                return note.Id.AsFailedResult("NotFound");
+
+            entity.CopyModel(note);
+
+            var result = await Table.ReplaceAsync(entity);
+            if (!result)
+                return note.AsFailedResult<Note>("ReplaceAsync failed");
+
+            return entity
+                .ToListModel()
+                .AsOkResult();
+        }
+
+        public async Task<Result> DeleteNote(string id)
+        {
+            var entity = await GetDraft(id);
+            if (entity == null)
                 return id.AsFailedResult("NotFound");
 
-            var draftEntity = NoteEntity
-                .New(false, DateTime.UtcNow)
-                .CopyModel(noteEntity.ToModel());
-
-            var result = await table.InsertAsync(draftEntity);
+            var result = await Table.DeleteAsync(entity);
             if (!result)
-                return id.AsFailedResult("InsertAsync failed");
-
-            await table.DeleteAsync(noteEntity);
+                return id.AsFailedResult("DeleteAsync failed");
+                
             return Result.Ok;
         }
-        
-        private CloudTable GetTable(string tableName)
+                
+        private async Task<NoteEntity> GetDraft(string id)
         {
-            var storageAccount = CloudStorageAccount.Parse(Settings.StorageConnectionString);
-            var tableClient = storageAccount.CreateCloudTableClient();
-            
-            return tableClient.GetTableReference(tableName);
+            var draftKey = NoteEntity.GetDefaultKey(false);
+            return await Table.RetrieveAsync<NoteEntity>(draftKey, id);
         }
         
         // Azure Functions
@@ -86,10 +117,14 @@ namespace Alejof.Notes.Functions
         {                
             log.LogInformation($"C# Http trigger function executed: {nameof(GetNotesFunction)}");
 
+            var query = req.GetQueryParameterDictionary();
+            var published = query.TryGetValue("published", out var value) && bool.TryParse(value, out var boolValue) ?
+                boolValue : false;
+
             return await HttpRunner.For<NotesFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.GetNotes());
+                .ExecuteAsync(f => f.GetNotes(published));
         }
 
         [FunctionName("NotesGet")]
@@ -104,16 +139,50 @@ namespace Alejof.Notes.Functions
                 .ExecuteAsync(f => f.GetNote(id));
         }
 
-        [FunctionName("NotesUnpublish")]
-        public static async Task<IActionResult> UnpublishNoteFunction(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "unpublish/{id}")] HttpRequest req, ILogger log, string id)
+        [FunctionName("NotesCreate")]
+        public static async Task<IActionResult> CreateNoteFunction(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "notes")] HttpRequest req, ILogger log)
         {
-            log.LogInformation($"C# Http trigger function executed: {nameof(UnpublishNoteFunction)}");
+            log.LogInformation($"C# Http trigger function executed: {nameof(CreateNoteFunction)}");
+
+            var note = await req.GetJsonBodyAsAsync<Note>();
+            if (note == null)
+                return new BadRequestResult();
 
             return await HttpRunner.For<NotesFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.UnpublishNote(id));
+                .ExecuteAsync(f => f.CreateNote(note));
+        }
+
+        [FunctionName("NotesEdit")]
+        public static async Task<IActionResult> EditNoteFunction(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "notes/{id}")] HttpRequest req, ILogger log, string id)
+        {
+            log.LogInformation($"C# Http trigger function executed: {nameof(EditNoteFunction)}");
+
+            var note = await req.GetJsonBodyAsAsync<Note>();
+            if (note == null)
+                return new BadRequestResult();
+
+            note.Id = id;
+
+            return await HttpRunner.For<NotesFunction>()
+                .WithAuthorizedRequest(req)
+                .WithLogger(log)
+                .ExecuteAsync(f => f.EditNote(note));
+        }
+
+        [FunctionName("NotesDelete")]
+        public static async Task<IActionResult> DeleteNoteFunction(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "notes/{id}")] HttpRequest req, ILogger log, string id)
+        {
+            log.LogInformation($"C# Http trigger function executed: {nameof(DeleteNoteFunction)}");
+
+            return await HttpRunner.For<NotesFunction>()
+                .WithAuthorizedRequest(req)
+                .WithLogger(log)
+                .ExecuteAsync(f => f.DeleteNote(id));
         }
     }
 }
