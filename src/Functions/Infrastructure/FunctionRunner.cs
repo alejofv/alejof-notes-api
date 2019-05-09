@@ -15,6 +15,8 @@ namespace Alejof.Notes.Functions.Infrastructure
         private ILogger _log;
         private HttpRequest _req;
 
+        private const string LocalEnvName = "local";
+
         public FunctionRunner()
         {
             this._settings = Settings.Factory.Build();
@@ -36,7 +38,7 @@ namespace Alejof.Notes.Functions.Infrastructure
         {
             var logToUse = _log ?? NullLogger.Instance;
             
-            if (_req != null && !_req.IsAuthenticated(_settings.TokenSettings, logToUse))
+            if (_req != null && _settings.FunctionEnvironment != LocalEnvName && !_req.IsAuthenticated(_settings.TokenSettings, logToUse))
                 return new UnauthorizedResult();
 
             var impl = new TFunction

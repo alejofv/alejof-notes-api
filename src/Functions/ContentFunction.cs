@@ -50,7 +50,7 @@ namespace Alejof.Notes.Functions
 
         [FunctionName("NotesGetContent")]
         public static async Task<IActionResult> GetContentFunction(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "content")] HttpRequest req, ILogger log, string id)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "content")] HttpRequest req, ILogger log)
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(GetContentFunction)}");
 

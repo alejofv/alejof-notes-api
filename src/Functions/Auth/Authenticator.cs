@@ -10,7 +10,7 @@ namespace Alejof.Notes.Functions.Auth
     public static class Authenticator
     {
         public static bool IsAuthenticated(this HttpRequest req, Settings.TokenSettings tokenSettings, ILogger log)
-        {
+        {                
             string headerValue = req.Headers["Authorization"];
             if (string.IsNullOrWhiteSpace(headerValue) || !headerValue.StartsWith("Bearer"))
             {
