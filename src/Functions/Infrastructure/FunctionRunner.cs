@@ -26,13 +26,13 @@ namespace Alejof.Notes.Functions.Infrastructure
             return this;
         }
 
-        public FunctionRunner<TFunction> WithAuth(HttpRequest req)
+        public FunctionRunner<TFunction> WithAuthorizedRequest(HttpRequest req)
         {
             this._req = req;
             return this;
         }
 
-        public async Task<IActionResult> RunAsync(Func<TFunction, Task<IActionResult>> func)
+        public async Task<IActionResult> ExecuteAsync<TResult>(Func<TFunction, Task<TResult>> func)
         {
             var logToUse = _log ?? NullLogger.Instance;
             
@@ -45,12 +45,14 @@ namespace Alejof.Notes.Functions.Infrastructure
                 Settings = _settings,
             };
 
-            return await func(impl)
+            var data = await func(impl)
                 .ConfigureAwait(false);
+
+            return new OkObjectResult(data);
         }
     }
     
-    public static class FunctionRunner
+    public static class HttpRunner
     {
         public static FunctionRunner<TFunction> For<TFunction>() where TFunction : IFunction, new() => new FunctionRunner<TFunction>();
     }

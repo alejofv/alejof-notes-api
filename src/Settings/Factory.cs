@@ -16,6 +16,7 @@ namespace Alejof.Notes.Settings
                     KeyModulus = getTokenSetting("KeyModulus"),
                     KeyExponent = getTokenSetting("KeyExponent"),
                     ValidIssuer = getTokenSetting("ValidIssuer"),
+                    ValidAudience = getTokenSetting("ValidAudience"),
                 }
             };
         }

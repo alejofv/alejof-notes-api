@@ -1,7 +1,7 @@
 using System;
 using Microsoft.WindowsAzure.Storage.Table;
 
-namespace Alejof.Notes.Functions.Impl.TableStorage
+namespace Alejof.Notes.Functions.TableStorage
 {
     ///
     /// <summary>PartitionKey: "draft|note". RowKey: ReverseDate</summary>
@@ -19,13 +19,13 @@ namespace Alejof.Notes.Functions.Impl.TableStorage
         public string Content { get; set; }
         public string Source { get; set; }
 
-        public DateTime Date => RefDate - TimeSpan.FromSeconds(int.Parse(RowKey));
+        public DateTime Date => RefDate - TimeSpan.FromSeconds(double.Parse(RowKey));
 
         public static NoteEntity New(bool published, DateTime date)
         {
             return new NoteEntity
             {
-                PartitionKey = published ? "note" : "draft",
+                PartitionKey = GetDefaultKey(published),
                 RowKey = (RefDate - date).TotalSeconds.ToString("F0"),
             };
         }

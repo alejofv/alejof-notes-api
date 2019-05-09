@@ -4,7 +4,7 @@ namespace Alejof.Notes.Models
 {
     public class Note
     {
-        public int Id { get; set; } // Reverse date
+        public string Id { get; set; } // Reverse date
         public string Type { get; set; }
         public string Title { get; set; }
         public string Slug { get; set; }
