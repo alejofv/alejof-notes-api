@@ -74,8 +74,8 @@ namespace Alejof.Notes.Functions
                     async (function, settings) =>
                     {
                         var publishResult = await function.Publish(id, publish);
-                        
-                        if (publishResult.Success)
+
+                        if (publishResult.Success && !string.IsNullOrEmpty(settings.ContentSiteName))
                             await redeploySignalCollector.AddAsync(settings.ContentSiteName);
 
                         return publishResult;
