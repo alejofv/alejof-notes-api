@@ -33,13 +33,13 @@ namespace Alejof.Notes.Functions.Infrastructure
             this._req = req;
             return this;
         }
-
-        public async Task<IActionResult> ExecuteAsync<TResult>(Func<TFunction, Task<TResult>> func)
+        
+        public async Task<(TResult, UnauthorizedResult)> ExecuteAsync<TResult>(Func<TFunction, Settings.FunctionSettings, Task<TResult>> func)
         {
             var logToUse = _log ?? NullLogger.Instance;
-            
+
             if (_req != null && _settings.FunctionEnvironment != LocalEnvName && !_req.IsAuthenticated(_settings.TokenSettings, logToUse))
-                return new UnauthorizedResult();
+                return (default(TResult), new UnauthorizedResult());
 
             var impl = new TFunction
             {
@@ -47,11 +47,14 @@ namespace Alejof.Notes.Functions.Infrastructure
                 Settings = _settings,
             };
 
-            var data = await func(impl)
+            var data = await func(impl, _settings)
                 .ConfigureAwait(false);
 
-            return new OkObjectResult(data);
+            return (data, null);
         }
+
+        // Shortcut method
+        public Task<(TResult, UnauthorizedResult)> ExecuteAsync<TResult>(Func<TFunction, Task<TResult>> func) => this.ExecuteAsync((function, settings) => func(function));
     }
     
     public static class HttpRunner

@@ -45,17 +45,6 @@ namespace Alejof.Notes.Extensions
             return result.IsSuccess();
         }
 
-        public static async Task<bool> MergeAsync(this CloudTable table, ITableEntity entity, bool insertIfNotFound = false)
-        {
-            var operation = insertIfNotFound ?
-                TableOperation.InsertOrMerge(entity)
-                : TableOperation.Merge(entity);
-
-            var result = await table.ExecuteAsync(operation);
-
-            return result.IsSuccess();
-        }
-
         public static async Task<bool> DeleteAsync(this CloudTable table, ITableEntity entity)
         {
             var operation = TableOperation.Delete(entity);
