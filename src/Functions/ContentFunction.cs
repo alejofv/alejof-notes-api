@@ -57,7 +57,8 @@ namespace Alejof.Notes.Functions
             return await HttpRunner.For<ContentFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.GetContent());
+                .ExecuteAsync(f => f.GetContent())
+                .AsIActionResult();
         }
     }
 }

@@ -24,6 +24,8 @@ namespace Alejof.Notes.Functions
         public ILogger Log { get; set; }
         public FunctionSettings Settings { get; set; }
 
+        public const string RedeployQueueName = "netlify-deploy-signal";
+
         public async Task<Result> Publish(string id, bool publish)
         {
             var table = GetTable(NoteEntity.TableName);
@@ -58,26 +60,27 @@ namespace Alejof.Notes.Functions
 
         [FunctionName("Publish")]
         public static async Task<IActionResult> PublishNoteFunction(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "publish/{id}")] HttpRequest req, ILogger log, string id)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", "delete", Route = "publish/{id}")] HttpRequest req, ILogger log, string id,
+            [Queue(RedeployQueueName)]IAsyncCollector<string> redeploySignalCollector)
         {
-            log.LogInformation($"C# Http trigger function executed: {nameof(PublishFunction)}");
+            log.LogInformation($"C# Http trigger function executed: {nameof(PublishFunction)}, method: {req.Method}");
+
+            var publish = !string.Equals(req.Method, "delete", StringComparison.OrdinalIgnoreCase);
 
             return await HttpRunner.For<PublishFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.Publish(id, true));
-        }
+                .ExecuteAsync(
+                    async (function, settings) =>
+                    {
+                        var publishResult = await function.Publish(id, publish);
+                        
+                        if (publishResult.Success)
+                            await redeploySignalCollector.AddAsync(settings.ContentSiteName);
 
-        [FunctionName("Unpublish")]
-        public static async Task<IActionResult> UnpublishFunction(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "unpublish/{id}")] HttpRequest req, ILogger log, string id)
-        {
-            log.LogInformation($"C# Http trigger function executed: {nameof(UnpublishFunction)}");
-
-            return await HttpRunner.For<PublishFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
-                .ExecuteAsync(f => f.Publish(id, false));
+                        return publishResult;
+                    })
+                .AsIActionResult(x => new OkResult());
         }
     }
 }

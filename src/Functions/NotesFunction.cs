@@ -124,7 +124,8 @@ namespace Alejof.Notes.Functions
             return await HttpRunner.For<NotesFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.GetNotes(published));
+                .ExecuteAsync(f => f.GetNotes(published))
+                .AsIActionResult();
         }
 
         [FunctionName("NotesGet")]
@@ -136,7 +137,8 @@ namespace Alejof.Notes.Functions
             return await HttpRunner.For<NotesFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.GetNote(id));
+                .ExecuteAsync(f => f.GetNote(id))
+                .AsIActionResult();
         }
 
         [FunctionName("NotesCreate")]
@@ -152,7 +154,8 @@ namespace Alejof.Notes.Functions
             return await HttpRunner.For<NotesFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.CreateNote(note));
+                .ExecuteAsync(f => f.CreateNote(note))
+                .AsIActionResult();
         }
 
         [FunctionName("NotesEdit")]
@@ -170,7 +173,8 @@ namespace Alejof.Notes.Functions
             return await HttpRunner.For<NotesFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.EditNote(note));
+                .ExecuteAsync(f => f.EditNote(note))
+                .AsIActionResult();
         }
 
         [FunctionName("NotesDelete")]
@@ -182,7 +186,8 @@ namespace Alejof.Notes.Functions
             return await HttpRunner.For<NotesFunction>()
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
-                .ExecuteAsync(f => f.DeleteNote(id));
+                .ExecuteAsync(f => f.DeleteNote(id))
+                .AsIActionResult();
         }
     }
 }
