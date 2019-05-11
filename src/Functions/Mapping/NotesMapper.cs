@@ -15,7 +15,7 @@ namespace Alejof.Notes.Functions.Mapping
                 Id = entity.RowKey,
                 Type = entity.Type,
                 Title = entity.Title,
-                Source = entity.Source.FirstUrl(),
+                Source = entity.Source.UrlDomain(),
                 DateText = entity.Date.Humanize(utcDate: true),
             };
 
@@ -40,29 +40,6 @@ namespace Alejof.Notes.Functions.Mapping
             entity.Source = note.Source;
 
             return entity;
-        }
-    }
-
-    public static class MapperExtensions
-    {
-        private static readonly Regex LinkParser = new Regex(@"\b(?:https?:\/\/|www\.)([^ \f\n\r\t\v\]]+)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-        public static string FirstUrl(this string value)
-        {
-            if (!string.IsNullOrEmpty(value))
-            {
-                var match = LinkParser.Matches(value).FirstOrDefault();
-                if (match != null)
-                {
-                    var url = match.Groups[1].Value;
-
-                    return url.Contains("/") ?
-                        url.Substring(0, url.IndexOf("/"))
-                        : url;
-                }
-            }
-
-            return "...";
         }
     }
 }
