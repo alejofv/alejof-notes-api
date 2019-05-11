@@ -14,11 +14,12 @@ namespace Alejof.Notes.Functions.Mapping
             return new Models.Content
             {
                 Title = entity.Title,
-                Source = entity.Source,
                 Text = entity.Content,
                 Slug = entity.Slug,
                 Type = entity.Type,
                 Date = entity.Date.ToString("yyyy-MM-dd"),
+                SourceUrl = entity.Source,
+                SourceName = entity.Source.UrlDomain(),
             };
         }
     }
