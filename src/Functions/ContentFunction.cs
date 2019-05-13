@@ -48,7 +48,7 @@ namespace Alejof.Notes.Functions
         
         // Azure Functions
 
-        [FunctionName("NotesGetContent")]
+        [FunctionName("ContentGet")]
         public static async Task<IActionResult> GetContentFunction(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "content")] HttpRequest req, ILogger log)
         {
