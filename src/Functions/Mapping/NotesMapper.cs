@@ -26,7 +26,6 @@ namespace Alejof.Notes.Functions.Mapping
                 Type = entity.Type,
                 Title = entity.Title,
                 Slug = entity.Slug,
-                Content = entity.Content,
                 Source = entity.Source,
                 DateText = entity.Date.Humanize(utcDate: true),
             };
@@ -36,7 +35,6 @@ namespace Alejof.Notes.Functions.Mapping
             entity.Title = note.Title;
             entity.Type = note.Type;
             entity.Slug = note.Slug;
-            entity.Content = note.Content;
             entity.Source = note.Source;
 
             return entity;

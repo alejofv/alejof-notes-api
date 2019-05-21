@@ -39,6 +39,7 @@ namespace Alejof.Notes.Functions
             var newEntity = NoteEntity
                 .New(publish, DateTime.UtcNow)
                 .CopyModel(existingEntity.ToModel());
+            newEntity.BlobUri = existingEntity.BlobUri;
 
             var result = await table.InsertAsync(newEntity);
             if (!result)
