@@ -16,10 +16,11 @@ namespace Alejof.Notes.Functions.TableStorage
         public string Type { get; set; }
         public string Title { get; set; }
         public string Slug { get; set; }
-        public string Content { get; set; }
         public string Source { get; set; }
+        public string BlobUri { get; set; }
 
         public DateTime Date => RefDate - TimeSpan.FromSeconds(double.Parse(RowKey));
+        public string FileName => $"{Date.ToString("yyyy-MM-dd")}-{Slug}";
 
         public static NoteEntity New(bool published, DateTime date)
         {

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Alejof.Notes.Extensions;
 using Alejof.Notes.Functions.Auth;
@@ -15,6 +17,7 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Alejof.Notes.Functions
@@ -41,6 +44,23 @@ namespace Alejof.Notes.Functions
             }
         }
 
+        private CloudBlobContainer _blob = null;
+        private CloudBlobContainer Blob
+        {
+            get
+            {
+                if (_blob == null)
+                {
+                    var storageAccount = CloudStorageAccount.Parse(Settings.StorageConnectionString);
+                    var blobClient = storageAccount.CreateCloudBlobClient();
+
+                    _blob = blobClient.GetContainerReference(NoteEntity.TableName.ToLower());
+                }
+
+                return _blob;
+            }
+        }
+
         public async Task<IReadOnlyCollection<Note>> GetNotes(bool published)
         {
             var key = NoteEntity.GetDefaultKey(published);
@@ -54,8 +74,14 @@ namespace Alejof.Notes.Functions
 
         public async Task<Note> GetNote(string id)
         {
-            var entity = await GetDraft(id);
-            return entity?.ToModel();
+            var entity = await GetNoteEntity(id);
+            var model = entity?.ToModel();
+            
+            // Get content from blob
+            if (!string.IsNullOrEmpty(entity.BlobUri))
+                model.Content = await DownloadContent(entity.BlobUri);
+
+            return model;
         }
 
         public async Task<Result> CreateNote(Note note)
@@ -63,6 +89,8 @@ namespace Alejof.Notes.Functions
             var entity = NoteEntity
                 .New(false, DateTime.UtcNow)
                 .CopyModel(note);
+
+            entity.BlobUri = await UploadContent(note.Content, entity.FileName);
 
             var result = await Table.InsertAsync(entity);
             if (!result)
@@ -75,11 +103,12 @@ namespace Alejof.Notes.Functions
 
         public async Task<Result> EditNote(Note note)
         {
-            var entity = await GetDraft(note.Id);
+            var entity = await GetNoteEntity(note.Id);
             if (entity == null)
                 return note.Id.AsFailedResult("NotFound");
 
             entity.CopyModel(note);
+            entity.BlobUri = await UploadContent(note.Content, entity.FileName);
 
             var result = await Table.ReplaceAsync(entity);
             if (!result)
@@ -92,21 +121,51 @@ namespace Alejof.Notes.Functions
 
         public async Task<Result> DeleteNote(string id)
         {
-            var entity = await GetDraft(id);
+            var entity = await GetNoteEntity(id);
             if (entity == null)
                 return id.AsFailedResult("NotFound");
 
             var result = await Table.DeleteAsync(entity);
             if (!result)
                 return id.AsFailedResult("DeleteAsync failed");
+
+            await DeleteContent(entity.FileName);
                 
             return Result.Ok;
         }
                 
-        private async Task<NoteEntity> GetDraft(string id)
+        private async Task<NoteEntity> GetNoteEntity(string id)
         {
             var draftKey = NoteEntity.GetDefaultKey(false);
             return await Table.RetrieveAsync<NoteEntity>(draftKey, id);
+        }
+        
+        private async Task<string> UploadContent(string content, string filename)
+        {
+            var blob = Blob.GetBlockBlobReference(filename.ToLowerInvariant());
+            using (var data = new MemoryStream(Encoding.UTF8.GetBytes(content)))
+            {
+                await blob.UploadFromStreamAsync(data);
+            }
+
+            return blob.Uri.ToString();
+        }
+
+        private async Task<string> DownloadContent(string uri)
+        {
+            var blob = await Blob.ServiceClient.GetBlobReferenceFromServerAsync(new Uri(uri));
+
+            using (var sm = new MemoryStream())
+            {
+                await blob.DownloadToStreamAsync(sm);
+                return Encoding.UTF8.GetString(sm.ToArray());
+            }
+        }
+
+        private async Task DeleteContent(string uri)
+        {
+            var blob = await Blob.ServiceClient.GetBlobReferenceFromServerAsync(new Uri(uri));
+            await blob.DeleteIfExistsAsync();
         }
         
         // Azure Functions
