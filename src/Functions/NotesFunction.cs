@@ -129,7 +129,7 @@ namespace Alejof.Notes.Functions
             if (!result)
                 return id.AsFailedResult("DeleteAsync failed");
 
-            await DeleteContent(entity.FileName);
+            await DeleteContent(entity.BlobUri);
                 
             return Result.Ok;
         }
