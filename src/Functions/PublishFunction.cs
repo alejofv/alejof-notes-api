@@ -72,12 +72,17 @@ namespace Alejof.Notes.Functions
                 .WithAuthorizedRequest(req)
                 .WithLogger(log)
                 .ExecuteAsync(
-                    async (function, settings) =>
+                    async function =>
                     {
                         var publishResult = await function.Publish(id, publish);
 
-                        if (publishResult.Success && !string.IsNullOrEmpty(settings.ContentSiteName))
-                            await redeploySignalCollector.AddAsync(settings.ContentSiteName);
+                        // TODO: MULTI-TENANT ARCHITECTURE:
+
+                        // Get tenant name from function's AuthContext instead of settings
+                        // Find mapped site name from tableStorage (PK:deploy-hook, RK:tenant)
+
+                        if (publishResult.Success && !string.IsNullOrEmpty(function.Settings.ContentSiteName))
+                            await redeploySignalCollector.AddAsync(function.Settings.ContentSiteName);
 
                         return publishResult;
                     })

@@ -34,12 +34,17 @@ namespace Alejof.Notes.Functions.Infrastructure
             return this;
         }
         
-        public async Task<(TResult, UnauthorizedResult)> ExecuteAsync<TResult>(Func<TFunction, Settings.FunctionSettings, Task<TResult>> func)
+        public async Task<(TResult, UnauthorizedResult)> ExecuteAsync<TResult>(Func<TFunction, Task<TResult>> func)
         {
             var logToUse = _log ?? NullLogger.Instance;
 
             if (_req != null && _settings.FunctionEnvironment != LocalEnvName && !_req.IsAuthenticated(_settings.TokenSettings, logToUse))
                 return (default(TResult), new UnauthorizedResult());
+
+            // TODO: MULTI-TENANT ARCHITECTURE:
+            
+            // Authorization should return an AuthContext object if token is valid
+            // Set the context on the IFunction property, same fashion as Log and Settings
 
             var impl = new TFunction
             {
@@ -47,14 +52,11 @@ namespace Alejof.Notes.Functions.Infrastructure
                 Settings = _settings,
             };
 
-            var data = await func(impl, _settings)
+            var data = await func(impl)
                 .ConfigureAwait(false);
 
             return (data, null);
         }
-
-        // Shortcut method
-        public Task<(TResult, UnauthorizedResult)> ExecuteAsync<TResult>(Func<TFunction, Task<TResult>> func) => this.ExecuteAsync((function, settings) => func(function));
     }
     
     public static class HttpRunner

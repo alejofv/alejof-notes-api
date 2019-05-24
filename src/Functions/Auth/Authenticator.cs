@@ -25,6 +25,24 @@ namespace Alejof.Notes.Functions.Auth
                 return false;
             }
 
+            // TODO: MULTI-TENANT ARCHITECTURE:
+
+            // 1. Require another header called tenant-id
+
+            // 2. Get auth0 domain and API id from tableStorage
+            // -- Table: Auth0Mappings
+            // -- PK:"tenant", RK:tenant-name, Auth0 domain, Client ID
+
+            // 3. Get auth0 keys from https://{auth0 domain}/.well-known/jwks.json
+
+            // 4. Validate token against tenant-specific params
+
+            // 5. Return custom AuthContext object (or Claims list) to be set on the Function impl instance via interface Propoerty
+            // -- tenant (header)
+            // -- username (jwt->nickname)
+            // -- name (jwt->name)
+            // -- email (jwt->email)
+
             try
             {
                 var rsa = new RSACryptoServiceProvider();
