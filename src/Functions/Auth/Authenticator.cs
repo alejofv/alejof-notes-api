@@ -9,6 +9,7 @@ namespace Alejof.Notes.Functions.Auth
 {
     public static class Authenticator
     {
+        // Validate Auth0 token according to https://auth0.com/docs/api-auth/tutorials/verify-access-token
         public static bool IsAuthenticated(this HttpRequest req, Settings.TokenSettings tokenSettings, ILogger log)
         {                
             string headerValue = req.Headers["Authorization"];
@@ -36,6 +37,9 @@ namespace Alejof.Notes.Functions.Auth
             // 3. Get auth0 keys from https://{auth0 domain}/.well-known/jwks.json
 
             // 4. Validate token against tenant-specific params
+            // Keys -> From jwks (n, e)
+            // issuer -> from table (Domain)
+            // audience -> from table (ClientID) 
 
             // 5. Return custom AuthContext object (or Claims list) to be set on the Function impl instance via interface Propoerty
             // -- tenant (header)

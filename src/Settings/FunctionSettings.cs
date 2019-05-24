@@ -4,8 +4,10 @@ namespace Alejof.Notes.Settings
     {
         public string StorageConnectionString { get; set; }
         public string FunctionEnvironment { get; set; }
-        public string ContentSiteName { get; set; }
         
+        // TODO: Remove
+        public string ContentSiteName { get; set; }
+        // TODO: Remove
         public TokenSettings TokenSettings { get; set; }
     }
     
