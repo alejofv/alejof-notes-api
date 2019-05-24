@@ -63,6 +63,12 @@ namespace Alejof.Notes.Functions.Infrastructure
 
             // Authorization should return an AuthContext object if token is valid
             var tenantId = _req.GetTenantId();
+
+            if (string.IsNullOrWhiteSpace(tenantId))
+            {
+                Log.LogWarning("Tenant-Id header not found");
+                return (default(TResult), new UnauthorizedResult());
+            }
             
             Auth.AuthContext context;
             if (Settings.FunctionEnvironment != LocalEnvName)

@@ -8,7 +8,7 @@ namespace Alejof.Notes.Functions.TableStorage
     ///
     public class NoteEntity : TableEntity
     {
-        public const string TableName = "AlejoFNotes";
+        public const string TableName = "NoteAppEntries";
         
         public static string GetKey(string tenantId, bool published) => $"{tenantId}_{(published ? "published" : "draft")}";
         private static readonly DateTime RefDate = new DateTime(2100, 1, 1);

@@ -17,7 +17,7 @@ namespace Alejof.Notes.Functions.Auth
 {
     public static class Authenticator
     {
-        private const string TenantIdHeaderName = "AlejoF-Tenant-Id";
+        private const string TenantIdHeaderName = "Notes-Tenant-Id";
         
         public static string GetTenantId(this HttpRequest req) => req.Headers[TenantIdHeaderName];
         
@@ -41,12 +41,6 @@ namespace Alejof.Notes.Functions.Auth
             // MULTI-TENANT AUTH:
 
             // 1. Require another header called tenant-id
-
-            if (string.IsNullOrWhiteSpace(tenantId))
-            {
-                log.LogWarning("AlejoF-Tenant-Id header not found");
-                return null;
-            }
 
             // 2. Get auth0 domain and API id from tableStorage
             // -- Table: Auth0Mappings
