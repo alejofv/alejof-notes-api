@@ -24,11 +24,11 @@ namespace Alejof.Notes.Functions
         public ILogger Log { get; set; }
         public FunctionSettings Settings { get; set; }
 
-        public async Task<IReadOnlyCollection<Content>> GetContent()
+        public async Task<IReadOnlyCollection<Content>> GetContent(string tenantId)
         {
             var table = GetTable(NoteEntity.TableName);
 
-            var publishedKey = NoteEntity.GetDefaultKey(true);
+            var publishedKey = NoteEntity.GetKey(tenantId, true);
             Log.LogInformation($"Getting notes from storage. TableName: {NoteEntity.TableName}, Key: {publishedKey}");
 
             var notes = await table.ScanAsync<NoteEntity>(publishedKey);
@@ -50,13 +50,13 @@ namespace Alejof.Notes.Functions
 
         [FunctionName("ContentGet")]
         public static async Task<IActionResult> GetContentFunction(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "content")] HttpRequest req, ILogger log)
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "content/{tenantId}")] HttpRequest req, ILogger log, string tenantId)
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(GetContentFunction)}");
 
             return await HttpRunner.For<ContentFunction>()
                 .WithLogger(log)
-                .ExecuteAsync(f => f.GetContent())
+                .ExecuteAsync(f => f.GetContent(tenantId))
                 .AsIActionResult();
         }
     }

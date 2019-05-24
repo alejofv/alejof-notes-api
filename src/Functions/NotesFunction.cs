@@ -22,11 +22,8 @@ using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Alejof.Notes.Functions
 {
-    public class NotesFunction : IFunction
+    public class NotesFunction : BaseFunction
     {
-        public ILogger Log { get; set; }
-        public FunctionSettings Settings { get; set; }
-
         private CloudTable _table = null;
         private CloudTable Table
         {
@@ -63,7 +60,7 @@ namespace Alejof.Notes.Functions
 
         public async Task<IReadOnlyCollection<Note>> GetNotes(bool published)
         {
-            var key = NoteEntity.GetDefaultKey(published);
+            var key = NoteEntity.GetKey(this.AuthContext.TenantId, published);
             var entities = await Table.ScanAsync<NoteEntity>(key);
             
             return entities
@@ -87,7 +84,7 @@ namespace Alejof.Notes.Functions
         public async Task<Result> CreateNote(Note note)
         {
             var entity = NoteEntity
-                .New(false, DateTime.UtcNow)
+                .New(this.AuthContext.TenantId, false, DateTime.UtcNow)
                 .CopyModel(note);
 
             entity.BlobUri = await UploadContent(note.Content, entity.FileName);
@@ -136,7 +133,7 @@ namespace Alejof.Notes.Functions
                 
         private async Task<NoteEntity> GetNoteEntity(string id)
         {
-            var draftKey = NoteEntity.GetDefaultKey(false);
+            var draftKey = NoteEntity.GetKey(this.AuthContext.TenantId, false);
             return await Table.RetrieveAsync<NoteEntity>(draftKey, id);
         }
         

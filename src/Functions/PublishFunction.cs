@@ -19,25 +19,22 @@ using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Alejof.Notes.Functions
 {
-    public class PublishFunction : IFunction
+    public class PublishFunction : BaseFunction
     {
-        public ILogger Log { get; set; }
-        public FunctionSettings Settings { get; set; }
-
         public const string RedeployQueueName = "netlify-deploy-signal";
 
         public async Task<Result> Publish(string id, bool publish)
         {
             var table = GetTable(NoteEntity.TableName);
 
-            var existingKey = NoteEntity.GetDefaultKey(!publish);
+            var existingKey = NoteEntity.GetKey(this.AuthContext.TenantId, !publish);
             var existingEntity = await table.RetrieveAsync<NoteEntity>(existingKey, id);
 
             if (existingEntity == null)
                 return id.AsFailedResult("NotFound");
 
             var newEntity = NoteEntity
-                .New(publish, DateTime.UtcNow)
+                .New(this.AuthContext.TenantId, publish, DateTime.UtcNow)
                 .CopyModel(existingEntity.ToModel());
             newEntity.BlobUri = existingEntity.BlobUri;
 
@@ -47,6 +44,14 @@ namespace Alejof.Notes.Functions
 
             await table.DeleteAsync(existingEntity);
             return Result.Ok;
+        }
+
+        public async Task<string> GetDeploySiteName()
+        {
+            var table = GetTable(DeployMappingEntity.TableName);
+            var mapping = await table.RetrieveAsync<DeployMappingEntity>(DeployMappingEntity.TenantKey, this.AuthContext.TenantId);
+
+            return mapping?.NetlifySite;
         }
         
         private CloudTable GetTable(string tableName)
@@ -76,17 +81,20 @@ namespace Alejof.Notes.Functions
                     {
                         var publishResult = await function.Publish(id, publish);
 
-                        // TODO: MULTI-TENANT ARCHITECTURE:
+                        // MULTI-TENANT ARCHITECTURE:
 
-                        // Get tenant name from function's AuthContext instead of settings
-                        // Find mapped site name from tableStorage (PK:deploy-hook, RK:tenant)
-
-                        if (publishResult.Success && !string.IsNullOrEmpty(function.Settings.ContentSiteName))
-                            await redeploySignalCollector.AddAsync(function.Settings.ContentSiteName);
+                        if (publishResult.Success)
+                        {
+                            // Get tenant name from function's AuthContext and 
+                            // Find mapped site name from tableStorage (PK:deploy, RK:tenant)   
+                            var deploySiteName = await function.GetDeploySiteName();
+                            if (!string.IsNullOrEmpty(deploySiteName))
+                                await redeploySignalCollector.AddAsync(deploySiteName);
+                        }
 
                         return publishResult;
                     })
                 .AsIActionResult(x => new OkResult());
-        }
+        }        
     }
 }

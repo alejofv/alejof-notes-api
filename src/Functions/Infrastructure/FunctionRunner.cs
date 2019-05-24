@@ -38,18 +38,24 @@ namespace Alejof.Notes.Functions.Infrastructure
         {
             var logToUse = _log ?? NullLogger.Instance;
 
-            if (_req != null && _settings.FunctionEnvironment != LocalEnvName && !_req.IsAuthenticated(_settings.TokenSettings, logToUse))
-                return (default(TResult), new UnauthorizedResult());
+            // MULTI-TENANT AUTH:
 
-            // TODO: MULTI-TENANT ARCHITECTURE:
-            
             // Authorization should return an AuthContext object if token is valid
+            Auth.AuthContext context = null;
+            if (_req != null && _settings.FunctionEnvironment != LocalEnvName)
+            {
+                context = await _req.AuthenticateAsync(logToUse, _settings);
+                if (context == null)
+                    return (default(TResult), new UnauthorizedResult());    
+            }
+            
             // Set the context on the IFunction property, same fashion as Log and Settings
 
             var impl = new TFunction
             {
                 Log = logToUse,
                 Settings = _settings,
+                AuthContext = context,
             };
 
             var data = await func(impl)
