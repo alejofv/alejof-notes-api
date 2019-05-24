@@ -8,55 +8,84 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Alejof.Notes.Functions.Infrastructure
 {
-    public class FunctionRunner<TFunction>
+    public class HttpFunctionRunner<TFunction>
         where TFunction : IFunction, new()
     {
-        protected readonly Settings.FunctionSettings _settings;
-        private ILogger _log;
-        private HttpRequest _req;
+        public Settings.FunctionSettings Settings { get; private set; }
+        public ILogger Log { get; private set; }
+
+        public HttpFunctionRunner(ILogger log, Settings.FunctionSettings settings = null)
+        {
+            Settings = settings ?? Notes.Settings.Factory.Build();
+            Log = log;
+        }
+
+        public AuthenticatedHttpFunctionRunner<TFunction> WithAuthentication(HttpRequest req)
+        {
+            return new AuthenticatedHttpFunctionRunner<TFunction>(this, req);
+        }
+        
+        public async Task<TResult> ExecuteAsync<TResult>(Func<TFunction, Task<TResult>> func)
+        {
+            var impl = new TFunction
+            {
+                Log = Log,
+                Settings = Settings,
+            };
+
+            var data = await func(impl)
+                .ConfigureAwait(false);
+
+            return data;
+        }
+    }
+
+    public class AuthenticatedHttpFunctionRunner<TFunction>
+        where TFunction : IFunction, new()
+    {
+        public Settings.FunctionSettings Settings { get; private set; }
+        public ILogger Log { get; private set; }
+        private readonly HttpRequest _req;
 
         private const string LocalEnvName = "local";
 
-        public FunctionRunner()
+        public AuthenticatedHttpFunctionRunner(HttpFunctionRunner<TFunction> originalRunner, HttpRequest req)
         {
-            this._settings = Settings.Factory.Build();
+            Log = originalRunner.Log;
+            Settings = originalRunner.Settings;
+            
+            _req = req;
         }
 
-        public FunctionRunner<TFunction> WithLogger(ILogger log)
-        {
-            this._log = log;
-            return this;
-        }
-
-        public FunctionRunner<TFunction> WithAuthorizedRequest(HttpRequest req)
-        {
-            this._req = req;
-            return this;
-        }
-        
         public async Task<(TResult, UnauthorizedResult)> ExecuteAsync<TResult>(Func<TFunction, Task<TResult>> func)
         {
-            var logToUse = _log ?? NullLogger.Instance;
-
             // MULTI-TENANT AUTH:
 
             // Authorization should return an AuthContext object if token is valid
-            Auth.AuthContext context = null;
-            if (_req != null && _settings.FunctionEnvironment != LocalEnvName)
-            {
-                context = await _req.AuthenticateAsync(logToUse, _settings);
-                if (context == null)
-                    return (default(TResult), new UnauthorizedResult());    
-            }
+            var tenantId = _req.GetTenantId();
             
+            Auth.AuthContext context;
+            if (Settings.FunctionEnvironment != LocalEnvName)
+            {
+                context = await _req.AuthenticateAsync(tenantId, Log, Settings);
+                if (context == null)
+                    return (default(TResult), new UnauthorizedResult());
+            }
+            else
+            {
+                context = AuthContext.Local(tenantId);
+            }
+
             // Set the context on the IFunction property, same fashion as Log and Settings
 
             var impl = new TFunction
             {
-                Log = logToUse,
-                Settings = _settings,
-                AuthContext = context,
+                Log = Log,
+                Settings = Settings,
             };
+            
+            if (impl is IAuthorizedFunction)
+                (impl as IAuthorizedFunction).AuthContext = context;
 
             var data = await func(impl)
                 .ConfigureAwait(false);
@@ -67,6 +96,6 @@ namespace Alejof.Notes.Functions.Infrastructure
     
     public static class HttpRunner
     {
-        public static FunctionRunner<TFunction> For<TFunction>() where TFunction : IFunction, new() => new FunctionRunner<TFunction>();
+        public static HttpFunctionRunner<TFunction> For<TFunction>(ILogger log) where TFunction : IFunction, new() => new HttpFunctionRunner<TFunction>(log);
     }
 }

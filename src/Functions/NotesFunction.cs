@@ -22,7 +22,7 @@ using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Alejof.Notes.Functions
 {
-    public class NotesFunction : BaseFunction
+    public class NotesFunction : IAuthorizedFunction
     {
         private CloudTable _table = null;
         private CloudTable Table
@@ -57,6 +57,10 @@ namespace Alejof.Notes.Functions
                 return _blob;
             }
         }
+
+        public AuthContext AuthContext { get; set; }
+        public ILogger Log { get; set; }
+        public FunctionSettings Settings { get; set; }
 
         public async Task<IReadOnlyCollection<Note>> GetNotes(bool published)
         {
@@ -177,9 +181,8 @@ namespace Alejof.Notes.Functions
             var published = query.TryGetValue("published", out var value) && bool.TryParse(value, out var boolValue) ?
                 boolValue : false;
 
-            return await HttpRunner.For<NotesFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
+            return await HttpRunner.For<NotesFunction>(log)
+                .WithAuthentication(req)
                 .ExecuteAsync(f => f.GetNotes(published))
                 .AsIActionResult();
         }
@@ -190,9 +193,8 @@ namespace Alejof.Notes.Functions
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(GetNoteFunction)}");
 
-            return await HttpRunner.For<NotesFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
+            return await HttpRunner.For<NotesFunction>(log)
+                .WithAuthentication(req)
                 .ExecuteAsync(f => f.GetNote(id))
                 .AsIActionResult();
         }
@@ -207,9 +209,8 @@ namespace Alejof.Notes.Functions
             if (note == null)
                 return new BadRequestResult();
 
-            return await HttpRunner.For<NotesFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
+            return await HttpRunner.For<NotesFunction>(log)
+                .WithAuthentication(req)
                 .ExecuteAsync(f => f.CreateNote(note))
                 .AsIActionResult();
         }
@@ -226,9 +227,8 @@ namespace Alejof.Notes.Functions
 
             note.Id = id;
 
-            return await HttpRunner.For<NotesFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
+            return await HttpRunner.For<NotesFunction>(log)
+                .WithAuthentication(req)
                 .ExecuteAsync(f => f.EditNote(note))
                 .AsIActionResult();
         }
@@ -239,9 +239,8 @@ namespace Alejof.Notes.Functions
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(DeleteNoteFunction)}");
 
-            return await HttpRunner.For<NotesFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
+            return await HttpRunner.For<NotesFunction>(log)
+                .WithAuthentication(req)
                 .ExecuteAsync(f => f.DeleteNote(id))
                 .AsIActionResult();
         }

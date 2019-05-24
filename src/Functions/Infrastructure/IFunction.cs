@@ -12,11 +12,4 @@ namespace Alejof.Notes.Functions.Infrastructure
     {
         Auth.AuthContext AuthContext { get; set; }
     }
-    
-    public abstract class BaseFunction : IAuthorizedFunction
-    {
-        public ILogger Log { get; set; }
-        public Settings.FunctionSettings Settings { get; set; }
-        public Auth.AuthContext AuthContext { get; set; }
-    }
 }

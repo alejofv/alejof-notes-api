@@ -17,8 +17,12 @@ namespace Alejof.Notes.Functions.Auth
 {
     public static class Authenticator
     {
+        private const string TenantIdHeaderName = "AlejoF-Tenant-Id";
+        
+        public static string GetTenantId(this HttpRequest req) => req.Headers[TenantIdHeaderName];
+        
         // Validate Auth0 token according to https://auth0.com/docs/api-auth/tutorials/verify-access-token
-        public static async Task<AuthContext> AuthenticateAsync(this HttpRequest req, ILogger log, Settings.FunctionSettings settings)
+        public static async Task<AuthContext> AuthenticateAsync(this HttpRequest req, string tenantId, ILogger log, Settings.FunctionSettings settings)
         {                
             string authorization = req.Headers["Authorization"];
             if (string.IsNullOrWhiteSpace(authorization) || !authorization.StartsWith("Bearer"))
@@ -38,7 +42,6 @@ namespace Alejof.Notes.Functions.Auth
 
             // 1. Require another header called tenant-id
 
-            string tenantId = req.Headers["AlejoF-Tenant-Id"];
             if (string.IsNullOrWhiteSpace(tenantId))
             {
                 log.LogWarning("AlejoF-Tenant-Id header not found");

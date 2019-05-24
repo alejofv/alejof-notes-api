@@ -54,8 +54,7 @@ namespace Alejof.Notes.Functions
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(GetContentFunction)}");
 
-            return await HttpRunner.For<ContentFunction>()
-                .WithLogger(log)
+            return await HttpRunner.For<ContentFunction>(log)
                 .ExecuteAsync(f => f.GetContent(tenantId))
                 .AsIActionResult();
         }

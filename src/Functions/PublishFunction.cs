@@ -19,8 +19,12 @@ using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Alejof.Notes.Functions
 {
-    public class PublishFunction : BaseFunction
+    public class PublishFunction : IAuthorizedFunction
     {
+        public AuthContext AuthContext { get; set; }
+        public ILogger Log { get; set; }
+        public FunctionSettings Settings { get; set; }
+        
         public const string RedeployQueueName = "netlify-deploy-signal";
 
         public async Task<Result> Publish(string id, bool publish)
@@ -73,9 +77,8 @@ namespace Alejof.Notes.Functions
 
             var publish = !string.Equals(req.Method, "delete", StringComparison.OrdinalIgnoreCase);
 
-            return await HttpRunner.For<PublishFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
+            return await HttpRunner.For<PublishFunction>(log)
+                .WithAuthentication(req)
                 .ExecuteAsync(
                     async function =>
                     {
@@ -94,7 +97,7 @@ namespace Alejof.Notes.Functions
 
                         return publishResult;
                     })
-                .AsIActionResult(x => new OkResult());
+                .AsIActionResult<Result>(x => new OkResult());
         }        
     }
 }
