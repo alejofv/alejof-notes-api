@@ -6,21 +6,10 @@ namespace Alejof.Notes.Settings
     {
         public static FunctionSettings Build()
         {
-            var getTokenSetting = GetPrefixedSettingFunc<TokenSettings>();
-            
             return new FunctionSettings
             {
                 StorageConnectionString = GetSetting("AzureWebJobsStorage"),
                 FunctionEnvironment = GetSetting("FunctionEnvironment"),
-                ContentSiteName = GetSetting("ContentSiteName"),
-                
-                TokenSettings = new TokenSettings
-                {
-                    KeyModulus = getTokenSetting("KeyModulus"),
-                    KeyExponent = getTokenSetting("KeyExponent"),
-                    ValidIssuer = getTokenSetting("ValidIssuer"),
-                    ValidAudience = getTokenSetting("ValidAudience"),
-                }
             };
         }
 

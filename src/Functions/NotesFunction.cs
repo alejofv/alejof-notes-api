@@ -22,11 +22,8 @@ using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Alejof.Notes.Functions
 {
-    public class NotesFunction : IFunction
+    public class NotesFunction : IAuthorizedFunction
     {
-        public ILogger Log { get; set; }
-        public FunctionSettings Settings { get; set; }
-
         private CloudTable _table = null;
         private CloudTable Table
         {
@@ -61,9 +58,13 @@ namespace Alejof.Notes.Functions
             }
         }
 
+        public AuthContext AuthContext { get; set; }
+        public ILogger Log { get; set; }
+        public FunctionSettings Settings { get; set; }
+
         public async Task<IReadOnlyCollection<Note>> GetNotes(bool published)
         {
-            var key = NoteEntity.GetDefaultKey(published);
+            var key = NoteEntity.GetKey(this.AuthContext.TenantId, published);
             var entities = await Table.ScanAsync<NoteEntity>(key);
             
             return entities
@@ -87,7 +88,7 @@ namespace Alejof.Notes.Functions
         public async Task<Result> CreateNote(Note note)
         {
             var entity = NoteEntity
-                .New(false, DateTime.UtcNow)
+                .New(this.AuthContext.TenantId, false, DateTime.UtcNow)
                 .CopyModel(note);
 
             entity.BlobUri = await UploadContent(note.Content, entity.FileName);
@@ -136,7 +137,7 @@ namespace Alejof.Notes.Functions
                 
         private async Task<NoteEntity> GetNoteEntity(string id)
         {
-            var draftKey = NoteEntity.GetDefaultKey(false);
+            var draftKey = NoteEntity.GetKey(this.AuthContext.TenantId, false);
             return await Table.RetrieveAsync<NoteEntity>(draftKey, id);
         }
         
@@ -180,9 +181,8 @@ namespace Alejof.Notes.Functions
             var published = query.TryGetValue("published", out var value) && bool.TryParse(value, out var boolValue) ?
                 boolValue : false;
 
-            return await HttpRunner.For<NotesFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
+            return await HttpRunner.For<NotesFunction>(log)
+                .WithAuthentication(req)
                 .ExecuteAsync(f => f.GetNotes(published))
                 .AsIActionResult();
         }
@@ -193,9 +193,8 @@ namespace Alejof.Notes.Functions
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(GetNoteFunction)}");
 
-            return await HttpRunner.For<NotesFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
+            return await HttpRunner.For<NotesFunction>(log)
+                .WithAuthentication(req)
                 .ExecuteAsync(f => f.GetNote(id))
                 .AsIActionResult();
         }
@@ -210,9 +209,8 @@ namespace Alejof.Notes.Functions
             if (note == null)
                 return new BadRequestResult();
 
-            return await HttpRunner.For<NotesFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
+            return await HttpRunner.For<NotesFunction>(log)
+                .WithAuthentication(req)
                 .ExecuteAsync(f => f.CreateNote(note))
                 .AsIActionResult();
         }
@@ -229,9 +227,8 @@ namespace Alejof.Notes.Functions
 
             note.Id = id;
 
-            return await HttpRunner.For<NotesFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
+            return await HttpRunner.For<NotesFunction>(log)
+                .WithAuthentication(req)
                 .ExecuteAsync(f => f.EditNote(note))
                 .AsIActionResult();
         }
@@ -242,9 +239,8 @@ namespace Alejof.Notes.Functions
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(DeleteNoteFunction)}");
 
-            return await HttpRunner.For<NotesFunction>()
-                .WithAuthorizedRequest(req)
-                .WithLogger(log)
+            return await HttpRunner.For<NotesFunction>(log)
+                .WithAuthentication(req)
                 .ExecuteAsync(f => f.DeleteNote(id))
                 .AsIActionResult();
         }

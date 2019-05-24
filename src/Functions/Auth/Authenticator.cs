@@ -1,50 +1,95 @@
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
+using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
+using Alejof.Notes.Extensions;
+using Alejof.Notes.Functions.TableStorage;
+using Flurl.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.WindowsAzure.Storage;
 
 namespace Alejof.Notes.Functions.Auth
 {
     public static class Authenticator
     {
-        public static bool IsAuthenticated(this HttpRequest req, Settings.TokenSettings tokenSettings, ILogger log)
+        private const string TenantIdHeaderName = "Notes-Tenant-Id";
+        
+        public static string GetTenantId(this HttpRequest req) => req.Headers[TenantIdHeaderName];
+        
+        // Validate Auth0 token according to https://auth0.com/docs/api-auth/tutorials/verify-access-token
+        public static async Task<AuthContext> AuthenticateAsync(this HttpRequest req, string tenantId, ILogger log, Settings.FunctionSettings settings)
         {                
-            string headerValue = req.Headers["Authorization"];
-            if (string.IsNullOrWhiteSpace(headerValue) || !headerValue.StartsWith("Bearer"))
+            string authorization = req.Headers["Authorization"];
+            if (string.IsNullOrWhiteSpace(authorization) || !authorization.StartsWith("Bearer"))
             {
                 log.LogWarning("Authorization header not found or not valid (must be Bearer token)");
-                return false;
+                return null;
             }
 
-            var token = headerValue.Substring("Bearer".Length).Trim();
+            var token = authorization.Substring("Bearer".Length).Trim();
             if (string.IsNullOrEmpty(token))
             {
                 log.LogWarning("Token not found");
-                return false;
+                return null;
+            }
+
+            // MULTI-TENANT AUTH:
+
+            // 1. Require another header called tenant-id
+
+            // 2. Get auth0 domain and API id from tableStorage
+            // -- Table: Auth0Mappings
+            // -- PK:"tenant", RK:tenant-name, Auth0 domain, Client ID
+            
+            var storageAccount = CloudStorageAccount.Parse(settings.StorageConnectionString);
+            var tableClient = storageAccount.CreateCloudTableClient();
+
+            var table = tableClient.GetTableReference(AuthMappingEntity.TableName);
+            var mapping = await table.RetrieveAsync<AuthMappingEntity>(AuthMappingEntity.TenantKey, tenantId);
+            
+            if (mapping == null)
+            {
+                log.LogWarning($"TenantId {tenantId} is not mapped");
+                return null;
             }
 
             try
             {
+                // 3. Get auth0 keys from https://{auth0 domain}/.well-known/jwks.json
+                
+                var jwks = await $"https://{mapping.Domain}/.well-known/jwks.json"
+                    .GetJsonAsync();
+
+                // 4. Validate token against tenant-specific params
+                // Keys -> From jwks (n, e)
+                
+                var jwtKey = jwks.keys[0];
                 var rsa = new RSACryptoServiceProvider();
                 rsa.ImportParameters(
                     new RSAParameters()
                     {
-                        Modulus = FromBase64Url(tokenSettings.KeyModulus),
-                        Exponent = FromBase64Url(tokenSettings.KeyExponent)
+                        Modulus = FromBase64Url(jwtKey.n),
+                        Exponent = FromBase64Url(jwtKey.e)
                     });
-                    
+
+                // issuer -> from table (Domain)
+                // audience -> from table (ClientID) 
+
                 var validationParameters = new TokenValidationParameters
                 {
                     RequireExpirationTime = true,
                     RequireSignedTokens = true,
-                    
+
                     ValidateIssuer = true,
-                    ValidIssuer = tokenSettings.ValidIssuer,
+                    ValidIssuer = $"https://{mapping.Domain}/",
 
                     ValidateAudience = true,
-                    ValidAudience = tokenSettings.ValidAudience,
+                    ValidAudience = mapping.ClientID,
 
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new RsaSecurityKey(rsa),
@@ -53,14 +98,16 @@ namespace Alejof.Notes.Functions.Auth
                 };
 
                 var handler = new JwtSecurityTokenHandler();
-                handler.ValidateToken(token, validationParameters, out var validatedToken);
-                
-                return true;
+                var claimsPrincipal = handler.ValidateToken(token, validationParameters, out var validatedToken);
+
+                // 5. Return custom AuthContext object (or Claims list) to be set on the Function impl instance via interface Propoerty
+
+                return BuildAuthContext(tenantId, claimsPrincipal);
             }
             catch (Exception ex)
             {
                 log.LogWarning(ex, "Token validation failed");
-                return false;
+                return null;
             }
         }
 
@@ -73,6 +120,27 @@ namespace Alejof.Notes.Functions.Auth
             string base64 = padded.Replace("_", "/").Replace("-", "+");
             
             return Convert.FromBase64String(base64);
+        }
+        
+        private static AuthContext BuildAuthContext(string tenantId, ClaimsPrincipal principal)
+        {
+            // local function
+            string findClaim(ClaimsPrincipal p, string type) => p.Claims
+                .FirstOrDefault(c => string.Equals(c.Type, type, StringComparison.OrdinalIgnoreCase))
+                ?.Value;
+
+            // -- tenant (header)
+            // -- username (jwt->nickname)
+            // -- name (jwt->name)
+            // -- email (jwt->email)
+
+            return new AuthContext
+            {
+                TenantId = tenantId,
+                Nickname = findClaim(principal, "nickname"),
+                FullName = findClaim(principal, "name"),
+                Email = findClaim(principal, "email"),
+            };
         }
     }
 }
