@@ -20,7 +20,6 @@ namespace Alejof.Notes.Functions.TableStorage
         public string BlobUri { get; set; }
 
         public DateTime Date => RefDate - TimeSpan.FromSeconds(double.Parse(RowKey));
-        public string FileName => $"{Date.ToString("yyyy-MM-dd")}-{Slug}.md";
 
         public static NoteEntity New(string tenantId, bool published, DateTime date)
         {
