@@ -52,10 +52,10 @@ namespace Alejof.Notes.Functions
 
         public async Task<string> GetDeploySiteName()
         {
-            var table = GetTable(DeployMappingEntity.TableName);
-            var mapping = await table.RetrieveAsync<DeployMappingEntity>(DeployMappingEntity.TenantKey, this.AuthContext.TenantId);
+            var table = GetTable(ConfigEntity.TableName);
+            var mapping = await table.RetrieveAsync<ConfigEntity>(this.AuthContext.TenantId, ConfigEntity.DeployKey);
 
-            return mapping?.NetlifySite;
+            return mapping?.Value;
         }
         
         private CloudTable GetTable(string tableName)

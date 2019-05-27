@@ -41,6 +41,23 @@ namespace Alejof.Notes.Functions
             }
         }
 
+        private CloudTable _configTable = null;
+        private CloudTable ConfigTable
+        {
+            get
+            {
+                if (_configTable == null)
+                {
+                    var storageAccount = CloudStorageAccount.Parse(Settings.StorageConnectionString);
+                    var tableClient = storageAccount.CreateCloudTableClient();
+
+                    _configTable = tableClient.GetTableReference(ConfigEntity.TableName);
+                }
+
+                return _configTable;
+            }
+        }
+
         private CloudBlobContainer _blob = null;
         private CloudBlobContainer Blob
         {
@@ -91,7 +108,8 @@ namespace Alejof.Notes.Functions
                 .New(this.AuthContext.TenantId, false, DateTime.UtcNow)
                 .CopyModel(note);
 
-            entity.BlobUri = await UploadContent(note.Content, entity.FileName);
+            var filename = await GetNoteFilename(this.AuthContext.TenantId, entity);
+            entity.BlobUri = await UploadContent(note.Content, filename);
 
             var result = await Table.InsertAsync(entity);
             if (!result)
@@ -108,8 +126,14 @@ namespace Alejof.Notes.Functions
             if (entity == null)
                 return note.Id.AsFailedResult("NotFound");
 
+            // Delete old content
+            await DeleteContent(entity.BlobUri);
+
+            // Upload new content
+            var filename = await GetNoteFilename(this.AuthContext.TenantId, entity);
+
             entity.CopyModel(note);
-            entity.BlobUri = await UploadContent(note.Content, entity.FileName);
+            entity.BlobUri = await UploadContent(note.Content, filename);
 
             var result = await Table.ReplaceAsync(entity);
             if (!result)
@@ -139,6 +163,12 @@ namespace Alejof.Notes.Functions
         {
             var draftKey = NoteEntity.GetKey(this.AuthContext.TenantId, false);
             return await Table.RetrieveAsync<NoteEntity>(draftKey, id);
+        }
+        
+        private async Task<string> GetNoteFilename(string tenantId, NoteEntity entity)
+        {
+            var format = await ConfigTable.RetrieveAsync<ConfigEntity>(tenantId, ConfigEntity.FormatKey);
+            return $"{entity.Date.ToString("yyyy-MM-dd")}-{entity.Slug}.{format?.Value ?? "md"}";
         }
         
         private async Task<string> UploadContent(string content, string filename)
