@@ -83,9 +83,11 @@ namespace Alejof.Notes.Functions
         {
             var key = NoteEntity.GetKey(this.AuthContext.TenantId, published);
             var entities = await Table.ScanAsync<NoteEntity>(key);
-            
+
+            var flag = await GetShortenSourcesFlag(this.AuthContext.TenantId);
+
             return entities
-                .Select(n => n.ToListModel())
+                .Select(n => n.ToListModel(shortenSourceLinks: flag))
                 .ToList()
                 .AsReadOnly();
         }
@@ -116,7 +118,7 @@ namespace Alejof.Notes.Functions
                 return note.AsFailedResult<Note>("InsertAsync failed");
 
             return entity
-                .ToListModel()
+                .ToModel()
                 .AsOkResult();
         }
 
@@ -140,7 +142,7 @@ namespace Alejof.Notes.Functions
                 return note.AsFailedResult<Note>("ReplaceAsync failed");
 
             return entity
-                .ToListModel()
+                .ToModel()
                 .AsOkResult();
         }
 
@@ -169,6 +171,12 @@ namespace Alejof.Notes.Functions
         {
             var format = await ConfigTable.RetrieveAsync<ConfigEntity>(tenantId, ConfigEntity.FormatKey);
             return $"{entity.Date.ToString("yyyy-MM-dd")}-{entity.Slug}.{format?.Value ?? "md"}";
+        }
+
+        private async Task<bool> GetShortenSourcesFlag(string tenantId)
+        {
+            var config = await ConfigTable.RetrieveAsync<ConfigEntity>(tenantId, ConfigEntity.ShortenSourcesKey);
+            return string.Equals(config?.Value ?? "false", bool.TrueString, StringComparison.OrdinalIgnoreCase);
         }
         
         private async Task<string> UploadContent(string content, string filename)

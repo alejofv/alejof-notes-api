@@ -53,7 +53,7 @@ namespace Alejof.Notes.Functions
         public async Task<string> GetDeploySiteName()
         {
             var table = GetTable(ConfigEntity.TableName);
-            var mapping = await table.RetrieveAsync<ConfigEntity>(this.AuthContext.TenantId, ConfigEntity.DeployKey);
+            var mapping = await table.RetrieveAsync<ConfigEntity>(this.AuthContext.TenantId, ConfigEntity.DeploySignalKey);
 
             return mapping?.Value;
         }

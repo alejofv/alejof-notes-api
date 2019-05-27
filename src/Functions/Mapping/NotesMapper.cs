@@ -9,13 +9,13 @@ namespace Alejof.Notes.Functions.Mapping
 {
     public static class NotesMapper
     {
-        public static Models.Note ToListModel(this NoteEntity entity) =>
+        public static Models.Note ToListModel(this NoteEntity entity, bool shortenSourceLinks = false) =>
             new Models.Note
             {
                 Id = entity.RowKey,
                 Type = entity.Type,
                 Title = entity.Title,
-                Source = entity.Source.UrlDomain(),
+                Source = shortenSourceLinks ? entity.Source.UrlDomain() : entity.Source,
                 DateText = entity.Date.Humanize(utcDate: true),
             };
 
