@@ -9,8 +9,9 @@ namespace Alejof.Notes.Functions.TableStorage
     public class ConfigEntity : TableEntity
     {
         public const string TableName = "NoteAppConfigs";
-        public const string DeployKey = "deploy-signal";
+        public const string DeploySignalKey = "deploy-signal";
         public const string FormatKey = "format";
+        public const string ShortenSourcesKey = "shorten-sources";
 
         public string Value { get; set; }
     }
