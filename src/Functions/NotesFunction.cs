@@ -41,23 +41,6 @@ namespace Alejof.Notes.Functions
             }
         }
 
-        private CloudTable _configTable = null;
-        private CloudTable ConfigTable
-        {
-            get
-            {
-                if (_configTable == null)
-                {
-                    var storageAccount = CloudStorageAccount.Parse(Settings.StorageConnectionString);
-                    var tableClient = storageAccount.CreateCloudTableClient();
-
-                    _configTable = tableClient.GetTableReference(ConfigEntity.TableName);
-                }
-
-                return _configTable;
-            }
-        }
-
         private CloudBlobContainer _blob = null;
         private CloudBlobContainer Blob
         {
@@ -79,15 +62,13 @@ namespace Alejof.Notes.Functions
         public ILogger Log { get; set; }
         public FunctionSettings Settings { get; set; }
 
-        public async Task<IReadOnlyCollection<Note>> GetNotes(bool published)
+        public async Task<IReadOnlyCollection<Note>> GetNotes(bool published, bool preserveFullSources)
         {
             var key = NoteEntity.GetKey(this.AuthContext.TenantId, published);
             var entities = await Table.ScanAsync<NoteEntity>(key);
 
-            var flag = await GetShortenSourcesFlag(this.AuthContext.TenantId);
-
             return entities
-                .Select(n => n.ToListModel(shortenSourceLinks: flag))
+                .Select(n => n.ToListModel(shortenSourceLinks: !preserveFullSources))
                 .ToList()
                 .AsReadOnly();
         }
@@ -104,13 +85,13 @@ namespace Alejof.Notes.Functions
             return model;
         }
 
-        public async Task<Result> CreateNote(Note note)
+        public async Task<Result> CreateNote(Note note, string format)
         {
             var entity = NoteEntity
                 .New(this.AuthContext.TenantId, false, DateTime.UtcNow)
                 .CopyModel(note);
 
-            var filename = await GetNoteFilename(this.AuthContext.TenantId, entity);
+            var filename = GetNoteFilename(entity, format);
             entity.BlobUri = await UploadContent(note.Content, filename);
 
             var result = await Table.InsertAsync(entity);
@@ -122,20 +103,21 @@ namespace Alejof.Notes.Functions
                 .AsOkResult();
         }
 
-        public async Task<Result> EditNote(Note note)
+        public async Task<Result> EditNote(Note note, string format)
         {
             var entity = await GetNoteEntity(note.Id);
             if (entity == null)
                 return note.Id.AsFailedResult("NotFound");
 
-            // Delete old content
-            await DeleteContent(entity.BlobUri);
-
-            // Upload new content
-            var filename = await GetNoteFilename(this.AuthContext.TenantId, entity);
+            var previousUri = entity.BlobUri;
+            var filename = GetNoteFilename(entity, format);
 
             entity.CopyModel(note);
             entity.BlobUri = await UploadContent(note.Content, filename);
+            
+             // Delete old content (after uploading the new one)
+             if (!string.Equals(entity.BlobUri, previousUri, StringComparison.OrdinalIgnoreCase))
+                await DeleteContent(previousUri);
 
             var result = await Table.ReplaceAsync(entity);
             if (!result)
@@ -167,16 +149,9 @@ namespace Alejof.Notes.Functions
             return await Table.RetrieveAsync<NoteEntity>(draftKey, id);
         }
         
-        private async Task<string> GetNoteFilename(string tenantId, NoteEntity entity)
+        private string GetNoteFilename(NoteEntity entity, string format)
         {
-            var format = await ConfigTable.RetrieveAsync<ConfigEntity>(tenantId, ConfigEntity.FormatKey);
-            return $"{entity.Date.ToString("yyyy-MM-dd")}-{entity.Slug}.{format?.Value ?? "md"}";
-        }
-
-        private async Task<bool> GetShortenSourcesFlag(string tenantId)
-        {
-            var config = await ConfigTable.RetrieveAsync<ConfigEntity>(tenantId, ConfigEntity.ShortenSourcesKey);
-            return string.Equals(config?.Value ?? "false", bool.TrueString, StringComparison.OrdinalIgnoreCase);
+            return $"{entity.Date.ToString("yyyy-MM-dd")}-{entity.Slug}.{format}";
         }
         
         private async Task<string> UploadContent(string content, string filename)
@@ -214,14 +189,19 @@ namespace Alejof.Notes.Functions
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "notes")] HttpRequest req, ILogger log)
         {                
             log.LogInformation($"C# Http trigger function executed: {nameof(GetNotesFunction)}");
+            
+            bool getBoolEntry(IDictionary<string, string> dict, string param) =>
+                dict.TryGetValue(param, out var value) && bool.TryParse(value, out var boolValue) ?
+                    boolValue : false;
 
-            var query = req.GetQueryParameterDictionary();
-            var published = query.TryGetValue("published", out var value) && bool.TryParse(value, out var boolValue) ?
-                boolValue : false;
+            var queryParams = req.GetQueryParameterDictionary();
+            
+            var published = getBoolEntry(queryParams, "published");
+            var preserve = getBoolEntry(queryParams, "preserveSources");
 
             return await HttpRunner.For<NotesFunction>(log)
                 .WithAuthentication(req)
-                .ExecuteAsync(f => f.GetNotes(published))
+                .ExecuteAsync(f => f.GetNotes(published, preserve))
                 .AsIActionResult();
         }
 
@@ -247,9 +227,12 @@ namespace Alejof.Notes.Functions
             if (note == null)
                 return new BadRequestResult();
 
+            var format = req.GetQueryParameterDictionary()
+                .TryGetValue("format", out var formatValue) ? formatValue : "md";
+
             return await HttpRunner.For<NotesFunction>(log)
                 .WithAuthentication(req)
-                .ExecuteAsync(f => f.CreateNote(note))
+                .ExecuteAsync(f => f.CreateNote(note, format))
                 .AsIActionResult();
         }
 
@@ -265,9 +248,12 @@ namespace Alejof.Notes.Functions
 
             note.Id = id;
 
+            var format = req.GetQueryParameterDictionary()
+                .TryGetValue("format", out var formatValue) ? formatValue : "md";
+
             return await HttpRunner.For<NotesFunction>(log)
                 .WithAuthentication(req)
-                .ExecuteAsync(f => f.EditNote(note))
+                .ExecuteAsync(f => f.EditNote(note, format))
                 .AsIActionResult();
         }
 

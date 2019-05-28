@@ -10,8 +10,6 @@ namespace Alejof.Notes.Functions.TableStorage
     {
         public const string TableName = "NoteAppConfigs";
         public const string DeploySignalKey = "deploy-signal";
-        public const string FormatKey = "format";
-        public const string ShortenSourcesKey = "shorten-sources";
 
         public string Value { get; set; }
     }
