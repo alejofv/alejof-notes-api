@@ -24,26 +24,19 @@ namespace Alejof.Notes.Functions
         public ILogger Log { get; set; }
         public FunctionSettings Settings { get; set; }
 
+        private CloudTable _table = null;
+        private CloudTable Table => _table = _table ?? Settings.StorageConnectionString.GetTable(NoteEntity.TableName);
+
         public async Task<IReadOnlyCollection<Content>> GetContent(string tenantId)
         {
-            var table = GetTable(NoteEntity.TableName);
-
             var publishedKey = NoteEntity.GetKey(tenantId, true);
             Log.LogInformation($"Getting notes from storage. TableName: {NoteEntity.TableName}, Key: {publishedKey}");
 
-            var notes = await table.ScanAsync<NoteEntity>(publishedKey);
+            var notes = await Table.ScanAsync<NoteEntity>(publishedKey);
             return notes
                 .Select(n => n.ToContentModel())
                 .ToList()
                 .AsReadOnly();
-        }
-        
-        private CloudTable GetTable(string tableName)
-        {
-            var storageAccount = CloudStorageAccount.Parse(Settings.StorageConnectionString);
-            var tableClient = storageAccount.CreateCloudTableClient();
-            
-            return tableClient.GetTableReference(tableName);
         }
         
         // Azure Functions

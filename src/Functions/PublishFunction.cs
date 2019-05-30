@@ -21,18 +21,19 @@ namespace Alejof.Notes.Functions
 {
     public class PublishFunction : IAuthorizedFunction
     {
+        public const string RedeployQueueName = "netlify-deploy-signal";
+        
         public AuthContext AuthContext { get; set; }
         public ILogger Log { get; set; }
         public FunctionSettings Settings { get; set; }
-        
-        public const string RedeployQueueName = "netlify-deploy-signal";
+
+        private CloudTable _table = null;
+        private CloudTable Table => _table = _table ?? Settings.StorageConnectionString.GetTable(NoteEntity.TableName);
 
         public async Task<Result> Publish(string id, bool publish)
         {
-            var table = GetTable(NoteEntity.TableName);
-
             var existingKey = NoteEntity.GetKey(this.AuthContext.TenantId, !publish);
-            var existingEntity = await table.RetrieveAsync<NoteEntity>(existingKey, id);
+            var existingEntity = await Table.RetrieveAsync<NoteEntity>(existingKey, id);
 
             if (existingEntity == null)
                 return id.AsFailedResult("NotFound");
@@ -42,28 +43,12 @@ namespace Alejof.Notes.Functions
                 .CopyModel(existingEntity.ToModel());
             newEntity.BlobUri = existingEntity.BlobUri;
 
-            var result = await table.InsertAsync(newEntity);
+            var result = await Table.InsertAsync(newEntity);
             if (!result)
                 return id.AsFailedResult("InsertAsync failed");
 
-            await table.DeleteAsync(existingEntity);
+            await Table.DeleteAsync(existingEntity);
             return Result.Ok;
-        }
-
-        public async Task<string> GetDeploySiteName()
-        {
-            var table = GetTable(ConfigEntity.TableName);
-            var mapping = await table.RetrieveAsync<ConfigEntity>(this.AuthContext.TenantId, ConfigEntity.DeploySignalKey);
-
-            return mapping?.Value;
-        }
-        
-        private CloudTable GetTable(string tableName)
-        {
-            var storageAccount = CloudStorageAccount.Parse(Settings.StorageConnectionString);
-            var tableClient = storageAccount.CreateCloudTableClient();
-            
-            return tableClient.GetTableReference(tableName);
         }
         
         // Azure Functions
@@ -84,16 +69,8 @@ namespace Alejof.Notes.Functions
                     {
                         var publishResult = await function.Publish(id, publish);
 
-                        // MULTI-TENANT ARCHITECTURE:
-
                         if (publishResult.Success)
-                        {
-                            // Get tenant name from function's AuthContext and 
-                            // Find mapped site name from tableStorage (PK:deploy, RK:tenant)   
-                            var deploySiteName = await function.GetDeploySiteName();
-                            if (!string.IsNullOrEmpty(deploySiteName))
-                                await redeploySignalCollector.AddAsync(deploySiteName);
-                        }
+                            await redeploySignalCollector.AddAsync(function.AuthContext.TenantId);
 
                         return publishResult;
                     })

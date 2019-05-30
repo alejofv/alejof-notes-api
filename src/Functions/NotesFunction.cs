@@ -24,43 +24,17 @@ namespace Alejof.Notes.Functions
 {
     public class NotesFunction : IAuthorizedFunction
     {
-        private CloudTable _table = null;
-        private CloudTable Table
-        {
-            get
-            {
-                if (_table == null)
-                {
-                    var storageAccount = CloudStorageAccount.Parse(Settings.StorageConnectionString);
-                    var tableClient = storageAccount.CreateCloudTableClient();
-
-                    _table = tableClient.GetTableReference(NoteEntity.TableName);
-                }
-
-                return _table;
-            }
-        }
-
-        private CloudBlobContainer _blob = null;
-        private CloudBlobContainer Blob
-        {
-            get
-            {
-                if (_blob == null)
-                {
-                    var storageAccount = CloudStorageAccount.Parse(Settings.StorageConnectionString);
-                    var blobClient = storageAccount.CreateCloudBlobClient();
-
-                    _blob = blobClient.GetContainerReference(NoteEntity.TableName.ToLower());
-                }
-
-                return _blob;
-            }
-        }
-
+        public const string BlobContainerName = "note-entries";
+        
         public AuthContext AuthContext { get; set; }
         public ILogger Log { get; set; }
         public FunctionSettings Settings { get; set; }
+
+        private CloudTable _table = null;
+        private CloudBlobContainer _container = null;
+        
+        private CloudTable Table => _table = _table ?? Settings.StorageConnectionString.GetTable(NoteEntity.TableName);
+        private CloudBlobContainer Container => _container = _container ?? Settings.StorageConnectionString.GetBlobContainer(BlobContainerName);
 
         public async Task<IReadOnlyCollection<Note>> GetNotes(bool published, bool preserveFullSources)
         {
@@ -156,7 +130,7 @@ namespace Alejof.Notes.Functions
         
         private async Task<string> UploadContent(string content, string filename)
         {
-            var blob = Blob.GetBlockBlobReference(filename.ToLowerInvariant());
+            var blob = Container.GetBlockBlobReference(filename.ToLowerInvariant());
             using (var data = new MemoryStream(Encoding.UTF8.GetBytes(content)))
             {
                 await blob.UploadFromStreamAsync(data);
@@ -167,7 +141,7 @@ namespace Alejof.Notes.Functions
 
         private async Task<string> DownloadContent(string uri)
         {
-            var blob = await Blob.ServiceClient.GetBlobReferenceFromServerAsync(new Uri(uri));
+            var blob = await Container.ServiceClient.GetBlobReferenceFromServerAsync(new Uri(uri));
 
             using (var sm = new MemoryStream())
             {
@@ -178,7 +152,7 @@ namespace Alejof.Notes.Functions
 
         private async Task DeleteContent(string uri)
         {
-            var blob = await Blob.ServiceClient.GetBlobReferenceFromServerAsync(new Uri(uri));
+            var blob = await Container.ServiceClient.GetBlobReferenceFromServerAsync(new Uri(uri));
             await blob.DeleteIfExistsAsync();
         }
         
