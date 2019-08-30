@@ -70,7 +70,7 @@ namespace Alejof.Notes.Functions
 
             var result = await Table.InsertAsync(entity);
             if (!result)
-                return note.AsFailedResult<Note>("InsertAsync failed");
+                return note.AsFailedResult("InsertAsync failed");
 
             return entity
                 .ToModel()
@@ -95,7 +95,7 @@ namespace Alejof.Notes.Functions
 
             var result = await Table.ReplaceAsync(entity);
             if (!result)
-                return note.AsFailedResult<Note>("ReplaceAsync failed");
+                return note.AsFailedResult("ReplaceAsync failed");
 
             return entity
                 .ToModel()

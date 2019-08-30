@@ -11,5 +11,6 @@ namespace Alejof.Notes.Models
         public string Content { get; set; }
         public string Source { get; set; }
         public string DateText { get; set; }
+        public string HeaderImageUrl { get; set; }
     }
 }

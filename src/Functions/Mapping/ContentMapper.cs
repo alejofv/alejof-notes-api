@@ -20,6 +20,7 @@ namespace Alejof.Notes.Functions.Mapping
                 SourceUrl = entity.Source,
                 SourceName = entity.Source.UrlDomain(),
                 ContentUrl = entity.BlobUri,
+                HeaderImageUrl = entity.HeaderUri,
             };
         }
     }

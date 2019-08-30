@@ -27,6 +27,7 @@ namespace Alejof.Notes.Functions.Mapping
                 Title = entity.Title,
                 Slug = entity.Slug,
                 Source = entity.Source,
+                HeaderImageUrl = entity.HeaderUri,
                 DateText = entity.Date.Humanize(utcDate: true),
             };
             
@@ -36,6 +37,7 @@ namespace Alejof.Notes.Functions.Mapping
             entity.Type = note.Type;
             entity.Slug = note.Slug;
             entity.Source = note.Source;
+            entity.HeaderUri = note.HeaderImageUrl;
 
             return entity;
         }

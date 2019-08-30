@@ -18,6 +18,7 @@ namespace Alejof.Notes.Functions.TableStorage
         public string Slug { get; set; }
         public string Source { get; set; }
         public string BlobUri { get; set; }
+        public string HeaderUri { get; set; }
 
         public DateTime Date => RefDate - TimeSpan.FromSeconds(double.Parse(RowKey));
 

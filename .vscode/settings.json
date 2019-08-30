@@ -3,11 +3,5 @@
     "azureFunctions.projectLanguage": "C#",
     "azureFunctions.projectRuntime": "~2",
     "debug.internalConsoleOptions": "neverOpen",
-    "azureFunctions.preDeployTask": "publish",
-    "workbench.colorCustomizations": {
-        "titleBar.activeBackground": "#f5be44",
-        "titleBar.inactiveBackground": "#f5be4499",
-        "titleBar.activeForeground": "#15202b",
-        "titleBar.inactiveForeground": "#15202b99"
-    }
+    "azureFunctions.preDeployTask": "publish"
 }
