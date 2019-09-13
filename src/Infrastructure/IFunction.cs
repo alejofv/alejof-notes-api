@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Alejof.Notes.Functions.Infrastructure
+namespace Alejof.Notes.Infrastructure
 {
     public interface IFunction
     {

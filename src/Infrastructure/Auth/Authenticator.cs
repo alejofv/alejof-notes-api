@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.WindowsAzure.Storage;
 
-namespace Alejof.Notes.Functions.Auth
+namespace Alejof.Notes.Auth
 {
     public static class Authenticator
     {

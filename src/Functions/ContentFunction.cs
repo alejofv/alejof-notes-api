@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Alejof.Notes.Extensions;
-using Alejof.Notes.Functions.Infrastructure;
+using Alejof.Notes.Infrastructure;
 using Alejof.Notes.Functions.Mapping;
 using Alejof.Notes.Functions.TableStorage;
 using Alejof.Notes.Models;
