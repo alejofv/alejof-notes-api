@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Alejof.Notes.Extensions;
 using Alejof.Notes.Functions;
+using Alejof.Notes.Functions.Mapping;
 using Alejof.Notes.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -97,6 +98,59 @@ namespace Alejof.Notes
             return await HttpRunner.For<NotesFunction>(log)
                 .WithAuthentication(req)
                 .ExecuteAsync(f => f.DeleteNote(id))
+                .AsIActionResult();
+        }
+
+        [FunctionName("MediaGetAll")]
+        public static async Task<IActionResult> GetMediaFunction(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "media")] HttpRequest req, ILogger log)
+        {
+            log.LogInformation($"C# Http trigger function executed: {nameof(GetMediaFunction)}");
+
+            return await HttpRunner.For<MediaFunction>(log)
+                .WithAuthentication(req)
+                .ExecuteAsync(f => f.GetMedia())
+                .AsIActionResult();
+        }
+
+        [FunctionName("MediaUpload")]
+        public static async Task<IActionResult> UploadMediaFunction(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "media")] HttpRequest req, ILogger log, IBinder binder)
+        {
+            log.LogInformation($"C# Http trigger function executed: {nameof(UploadMediaFunction)}");
+
+            var header = (string)req.Headers["Notes-Media-Name"];
+            if (string.IsNullOrEmpty(header))
+                return new BadRequestResult();
+
+            return await HttpRunner.For<MediaFunction>(log)
+                .WithAuthentication(req)
+                .ExecuteAsync(
+                    async function => 
+                    {
+                        var name = header.AsMediaName();
+                        var result = await function.CreateMedia(name);
+                        if (result.Success)
+                        {
+                            var blobAttribute = new BlobAttribute(function.GetMediaPath(name), System.IO.FileAccess.Write);
+                            using (var output = await binder.BindAsync<System.IO.Stream>(blobAttribute))
+                                await req.Body.CopyToAsync(output);
+                        }
+
+                        return result;
+                    })
+                .AsIActionResult();
+        }
+
+        [FunctionName("MediaDelete")]
+        public static async Task<IActionResult> DeleteMediaFunction(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "media/{id}")] HttpRequest req, ILogger log, string id)
+        {
+            log.LogInformation($"C# Http trigger function executed: {nameof(DeleteMediaFunction)}");
+
+            return await HttpRunner.For<MediaFunction>(log)
+                .WithAuthentication(req)
+                .ExecuteAsync(f => f.DeleteMedia(id))
                 .AsIActionResult();
         }
         

@@ -49,7 +49,7 @@ namespace Alejof.Notes.Functions
             
             // Get content from blob
             if (!string.IsNullOrEmpty(entity.BlobUri))
-                model.Content = await DownloadContent(entity.BlobUri);
+                model.Content = await Container.DownloadAsync(entity.BlobUri);
 
             return model;
         }
@@ -61,7 +61,7 @@ namespace Alejof.Notes.Functions
                 .CopyModel(note);
 
             var filename = GetNoteFilename(entity, format);
-            entity.BlobUri = await UploadContent(note.Content, filename);
+            entity.BlobUri = await Container.UploadAsync(note.Content, filename);
 
             var result = await Table.InsertAsync(entity);
             if (!result)
@@ -82,11 +82,11 @@ namespace Alejof.Notes.Functions
             var filename = GetNoteFilename(entity, format);
 
             entity.CopyModel(note);
-            entity.BlobUri = await UploadContent(note.Content, filename);
+            entity.BlobUri = await Container.UploadAsync(note.Content, filename);
             
              // Delete old content (after uploading the new one)
              if (!string.Equals(entity.BlobUri, previousUri, StringComparison.OrdinalIgnoreCase))
-                await DeleteContent(previousUri);
+                await Container.DeleteAsync(previousUri);
 
             var result = await Table.ReplaceAsync(entity);
             if (!result)
@@ -107,7 +107,7 @@ namespace Alejof.Notes.Functions
             if (!result)
                 return id.AsFailedResult("DeleteAsync failed");
 
-            await DeleteContent(entity.BlobUri);
+            await Container.DeleteAsync(entity.BlobUri);
                 
             return Result.Ok;
         }
@@ -121,34 +121,6 @@ namespace Alejof.Notes.Functions
         private string GetNoteFilename(NoteEntity entity, string format)
         {
             return $"{entity.Date.ToString("yyyy-MM-dd")}-{entity.Slug}.{format}";
-        }
-        
-        private async Task<string> UploadContent(string content, string filename)
-        {
-            var blob = Container.GetBlockBlobReference(filename.ToLowerInvariant());
-            using (var data = new MemoryStream(Encoding.UTF8.GetBytes(content)))
-            {
-                await blob.UploadFromStreamAsync(data);
-            }
-
-            return blob.Uri.ToString();
-        }
-
-        private async Task<string> DownloadContent(string uri)
-        {
-            var blob = await Container.ServiceClient.GetBlobReferenceFromServerAsync(new Uri(uri));
-
-            using (var sm = new MemoryStream())
-            {
-                await blob.DownloadToStreamAsync(sm);
-                return Encoding.UTF8.GetString(sm.ToArray());
-            }
-        }
-
-        private async Task DeleteContent(string uri)
-        {
-            var blob = await Container.ServiceClient.GetBlobReferenceFromServerAsync(new Uri(uri));
-            await blob.DeleteIfExistsAsync();
         }
     }
 }
