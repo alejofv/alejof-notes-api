@@ -1,4 +1,4 @@
-namespace Alejof.Notes.Functions.Auth
+namespace Alejof.Notes.Auth
 {
     public class AuthContext
     {        

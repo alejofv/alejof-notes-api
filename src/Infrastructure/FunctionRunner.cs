@@ -1,12 +1,11 @@
 using System;
 using System.Threading.Tasks;
-using Alejof.Notes.Functions.Auth;
+using Alejof.Notes.Auth;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Alejof.Notes.Functions.Infrastructure
+namespace Alejof.Notes.Infrastructure
 {
     public class HttpFunctionRunner<TFunction>
         where TFunction : IFunction, new()
