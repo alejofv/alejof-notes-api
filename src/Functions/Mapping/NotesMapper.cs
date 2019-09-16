@@ -16,6 +16,7 @@ namespace Alejof.Notes.Functions.Mapping
                 Type = entity.Type,
                 Title = entity.Title,
                 Source = shortenSourceLinks ? entity.Source.UrlDomain() : entity.Source,
+                HeaderImageUrl = entity.HeaderUri,
                 DateText = entity.Date.Humanize(utcDate: true),
             };
 
