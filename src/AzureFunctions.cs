@@ -115,7 +115,8 @@ namespace Alejof.Notes
 
         [FunctionName("MediaUpload")]
         public static async Task<IActionResult> UploadMediaFunction(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "media")] HttpRequest req, ILogger log, IBinder binder)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "media")] HttpRequest req, ILogger log, IBinder binder,
+            [Queue("media-thumbnail-signal")]IAsyncCollector<string> thumbnailSignalCollector)
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(UploadMediaFunction)}");
 
@@ -132,9 +133,14 @@ namespace Alejof.Notes
                         var result = await function.CreateMedia(name);
                         if (result.Success)
                         {
-                            var blobAttribute = new BlobAttribute(function.GetMediaPath(name), System.IO.FileAccess.Write);
-                            using (var output = await binder.BindAsync<System.IO.Stream>(blobAttribute))
+                            var blobName = function.GetMediaPath(name);
+
+                            // save in blob storage using dynamic function binding
+                            using (var output = await binder.BindAsync<System.IO.Stream>(new BlobAttribute(blobName, System.IO.FileAccess.Write)))
                                 await req.Body.CopyToAsync(output);
+
+                            // send signal to queue
+                            await thumbnailSignalCollector.AddAsync(blobName);
                         }
 
                         return result;
@@ -153,7 +159,7 @@ namespace Alejof.Notes
                 .ExecuteAsync(f => f.DeleteMedia(id))
                 .AsIActionResult();
         }
-        
+
         [FunctionName("ContentGet")]
         public static async Task<IActionResult> GetContentFunction(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "content/{tenantId}")] HttpRequest req, ILogger log, string tenantId)
