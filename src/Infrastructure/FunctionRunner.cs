@@ -7,29 +7,27 @@ using Microsoft.Extensions.Logging;
 
 namespace Alejof.Notes.Infrastructure
 {
-    public class HttpFunctionRunner<TFunction>
+    public class FunctionRunner<TFunction>
         where TFunction : IFunction, new()
     {
         public Settings.FunctionSettings Settings { get; private set; }
         public ILogger Log { get; private set; }
 
-        public HttpFunctionRunner(ILogger log, Settings.FunctionSettings settings = null)
+        public FunctionRunner(ILogger log, Settings.FunctionSettings settings = null)
         {
-            Settings = settings ?? Notes.Settings.Factory.Build();
             Log = log;
+            Settings = settings ?? Notes.Settings.Factory.Build();
         }
 
-        public AuthenticatedHttpFunctionRunner<TFunction> WithAuthentication(HttpRequest req)
-        {
-            return new AuthenticatedHttpFunctionRunner<TFunction>(this, req);
-        }
+        public FunctionRunnerWithAuthentication<TFunction> Authenticate(HttpRequest req) =>
+            new FunctionRunnerWithAuthentication<TFunction>(this.Log, this.Settings, req);
         
-        public async Task<TResult> ExecuteAsync<TResult>(Func<TFunction, Task<TResult>> func)
+        public async Task<TResult> RunAsync<TResult>(Func<TFunction, Task<TResult>> func)
         {
             var impl = new TFunction
             {
-                Log = Log,
-                Settings = Settings,
+                Log = this.Log,
+                Settings = this.Settings,
             };
 
             var data = await func(impl)
@@ -39,7 +37,7 @@ namespace Alejof.Notes.Infrastructure
         }
     }
 
-    public class AuthenticatedHttpFunctionRunner<TFunction>
+    public class FunctionRunnerWithAuthentication<TFunction>
         where TFunction : IFunction, new()
     {
         public Settings.FunctionSettings Settings { get; private set; }
@@ -48,15 +46,15 @@ namespace Alejof.Notes.Infrastructure
 
         private const string LocalEnvName = "local";
 
-        public AuthenticatedHttpFunctionRunner(HttpFunctionRunner<TFunction> originalRunner, HttpRequest req)
+        public FunctionRunnerWithAuthentication(ILogger log, Settings.FunctionSettings settings, HttpRequest req)
         {
-            Log = originalRunner.Log;
-            Settings = originalRunner.Settings;
+            Log = log;
+            Settings = settings;
             
             _req = req;
         }
 
-        public async Task<(TResult, UnauthorizedResult)> ExecuteAsync<TResult>(Func<TFunction, Task<TResult>> func)
+        public async Task<(TResult, UnauthorizedResult)> AndRunAsync<TResult>(Func<TFunction, Task<TResult>> func)
         {
             // MULTI-TENANT AUTH:
 
@@ -99,8 +97,8 @@ namespace Alejof.Notes.Infrastructure
         }
     }
     
-    public static class HttpRunner
+    public static class FunctionRunner
     {
-        public static HttpFunctionRunner<TFunction> For<TFunction>(ILogger log) where TFunction : IFunction, new() => new HttpFunctionRunner<TFunction>(log);
+        public static FunctionRunner<TFunction> For<TFunction>(ILogger log) where TFunction : IFunction, new() => new FunctionRunner<TFunction>(log);
     }
 }

@@ -31,9 +31,9 @@ namespace Alejof.Notes
             var published = getBoolEntry(queryParams, "published");
             var preserve = getBoolEntry(queryParams, "preserveSources");
 
-            return await HttpRunner.For<NotesFunction>(log)
-                .WithAuthentication(req)
-                .ExecuteAsync(f => f.GetNotes(published, preserve))
+            return await FunctionRunner.For<NotesFunction>(log)
+                .Authenticate(req)
+                .AndRunAsync(f => f.GetNotes(published, preserve))
                 .AsIActionResult();
         }
 
@@ -43,9 +43,9 @@ namespace Alejof.Notes
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(GetNoteFunction)}");
 
-            return await HttpRunner.For<NotesFunction>(log)
-                .WithAuthentication(req)
-                .ExecuteAsync(f => f.GetNote(id))
+            return await FunctionRunner.For<NotesFunction>(log)
+                .Authenticate(req)
+                .AndRunAsync(f => f.GetNote(id))
                 .AsIActionResult();
         }
 
@@ -62,9 +62,9 @@ namespace Alejof.Notes
             var format = req.GetQueryParameterDictionary()
                 .TryGetValue("format", out var formatValue) ? formatValue : "md";
 
-            return await HttpRunner.For<NotesFunction>(log)
-                .WithAuthentication(req)
-                .ExecuteAsync(f => f.CreateNote(note, format))
+            return await FunctionRunner.For<NotesFunction>(log)
+                .Authenticate(req)
+                .AndRunAsync(f => f.CreateNote(note, format))
                 .AsIActionResult();
         }
 
@@ -83,9 +83,9 @@ namespace Alejof.Notes
             var format = req.GetQueryParameterDictionary()
                 .TryGetValue("format", out var formatValue) ? formatValue : "md";
 
-            return await HttpRunner.For<NotesFunction>(log)
-                .WithAuthentication(req)
-                .ExecuteAsync(f => f.EditNote(note, format))
+            return await FunctionRunner.For<NotesFunction>(log)
+                .Authenticate(req)
+                .AndRunAsync(f => f.EditNote(note, format))
                 .AsIActionResult();
         }
 
@@ -95,9 +95,9 @@ namespace Alejof.Notes
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(DeleteNoteFunction)}");
 
-            return await HttpRunner.For<NotesFunction>(log)
-                .WithAuthentication(req)
-                .ExecuteAsync(f => f.DeleteNote(id))
+            return await FunctionRunner.For<NotesFunction>(log)
+                .Authenticate(req)
+                .AndRunAsync(f => f.DeleteNote(id))
                 .AsIActionResult();
         }
 
@@ -107,9 +107,9 @@ namespace Alejof.Notes
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(GetMediaFunction)}");
 
-            return await HttpRunner.For<MediaFunction>(log)
-                .WithAuthentication(req)
-                .ExecuteAsync(f => f.GetMedia())
+            return await FunctionRunner.For<MediaFunction>(log)
+                .Authenticate(req)
+                .AndRunAsync(f => f.GetMedia())
                 .AsIActionResult();
         }
 
@@ -124,9 +124,9 @@ namespace Alejof.Notes
             if (string.IsNullOrEmpty(header))
                 return new BadRequestResult();
 
-            return await HttpRunner.For<MediaFunction>(log)
-                .WithAuthentication(req)
-                .ExecuteAsync(
+            return await FunctionRunner.For<MediaFunction>(log)
+                .Authenticate(req)
+                .AndRunAsync(
                     async function => 
                     {
                         var name = header.AsMediaName();
@@ -154,20 +154,9 @@ namespace Alejof.Notes
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(DeleteMediaFunction)}");
 
-            return await HttpRunner.For<MediaFunction>(log)
-                .WithAuthentication(req)
-                .ExecuteAsync(f => f.DeleteMedia(id))
-                .AsIActionResult();
-        }
-
-        [FunctionName("ContentGet")]
-        public static async Task<IActionResult> GetContentFunction(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "content/{tenantId}")] HttpRequest req, ILogger log, string tenantId)
-        {
-            log.LogInformation($"C# Http trigger function executed: {nameof(GetContentFunction)}");
-
-            return await HttpRunner.For<ContentFunction>(log)
-                .ExecuteAsync(f => f.GetContent(tenantId))
+            return await FunctionRunner.For<MediaFunction>(log)
+                .Authenticate(req)
+                .AndRunAsync(f => f.DeleteMedia(id))
                 .AsIActionResult();
         }
 
@@ -180,9 +169,9 @@ namespace Alejof.Notes
 
             var publish = !string.Equals(req.Method, "delete", StringComparison.OrdinalIgnoreCase);
 
-            return await HttpRunner.For<PublishFunction>(log)
-                .WithAuthentication(req)
-                .ExecuteAsync(
+            return await FunctionRunner.For<PublishFunction>(log)
+                .Authenticate(req)
+                .AndRunAsync(
                     async function =>
                     {
                         var publishResult = await function.Publish(id, publish);
@@ -193,6 +182,17 @@ namespace Alejof.Notes
                         return publishResult;
                     })
                 .AsIActionResult<Models.Result>(x => new OkResult());
+        }
+
+        [FunctionName("ContentGet")]
+        public static async Task<IActionResult> GetContentFunction(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "content/{tenantId}")] HttpRequest req, ILogger log, string tenantId)
+        {
+            log.LogInformation($"C# Http trigger function executed: {nameof(GetContentFunction)}");
+
+            return await FunctionRunner.For<ContentFunction>(log)
+                .RunAsync(f => f.GetContent(tenantId))
+                .AsIActionResult();
         }
     }
 }
