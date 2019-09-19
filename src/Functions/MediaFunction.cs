@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage.Table;
 using Alejof.Notes.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
+using System.IO;
 
 namespace Alejof.Notes.Functions
 {
@@ -39,21 +40,22 @@ namespace Alejof.Notes.Functions
                 .AsReadOnly();
         }
 
-        public string GetMediaPath(string name) => $"{BlobContainerName}/{GetMediaName(name)}";
-        private string GetMediaName(string name) => $"{AuthContext.TenantId}/{name}";
+        public string GetMediaName(string name) => $"{AuthContext.TenantId}/{name}";
 
-        public async Task<Result> CreateMedia(string name)
+        public async Task<Result> CreateMedia(string name, Stream input)
         {
             var blob = Container.GetBlockBlobReference(GetMediaName(name));
-
             var entity = MediaEntity
                 .New(this.AuthContext.TenantId);
                 
             entity.Name = name;
             entity.BlobUri = blob.Uri.ToString();
 
-            var result = await Table.InsertAsync(entity);
-            if (!result)
+            var uploadTask = blob.UploadFromStreamAsync(input);
+            var resultTask = Table.InsertAsync(entity);
+
+            await Task.WhenAll(uploadTask, resultTask);
+            if (!resultTask.Result)
                 return "InsertAsync failed".AsFailedResult();
 
             return entity
@@ -67,11 +69,12 @@ namespace Alejof.Notes.Functions
             if (entity == null)
                 return id.AsFailedResult("NotFound");
 
-            var result = await Table.DeleteAsync(entity);
-            if (!result)
-                return id.AsFailedResult("DeleteAsync failed");
+            var resultTask = Table.DeleteAsync(entity);
+            var deleteTask = Container.DeleteAsync(entity.BlobUri);
 
-            await Container.DeleteAsync(entity.BlobUri);
+            await Task.WhenAll(resultTask, deleteTask);
+            if (!resultTask.Result)
+                return id.AsFailedResult("DeleteAsync failed");
 
             return Result.Ok;
         }

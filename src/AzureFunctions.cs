@@ -130,18 +130,10 @@ namespace Alejof.Notes
                     async function => 
                     {
                         var name = header.AsMediaName();
-                        var result = await function.CreateMedia(name);
+                        var result = await function.CreateMedia(name, req.Body);
+                        
                         if (result.Success)
-                        {
-                            var blobName = function.GetMediaPath(name);
-
-                            // save in blob storage using dynamic function binding
-                            using (var output = await binder.BindAsync<System.IO.Stream>(new BlobAttribute(blobName, System.IO.FileAccess.Write)))
-                                await req.Body.CopyToAsync(output);
-
-                            // send signal to queue
-                            await thumbnailSignalCollector.AddAsync(blobName);
-                        }
+                            await thumbnailSignalCollector.AddAsync(function.GetMediaName(name));
 
                         return result;
                     })

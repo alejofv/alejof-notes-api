@@ -10,10 +10,10 @@ pool:
   vmImage: 'Ubuntu-16.04'
 
 steps:
-- task: DotNetCoreInstaller@0
+- task: UseDotNet@2
   displayName: 'Install dotnet'
   inputs:
-    version: '2.2.202'
+    version: '2.2.x'
     packageType: sdk
 
 - script: 'dotnet publish -c Release -o $(build.artifactstagingdirectory)/functionapp'
