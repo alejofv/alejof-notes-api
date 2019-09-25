@@ -13,12 +13,14 @@ namespace Alejof.Notes.Functions.TableStorage
         public static string GetKey(string tenantId, bool published) => $"{tenantId}_{(published ? "published" : "draft")}";
         private static readonly DateTime RefDate = new DateTime(2100, 1, 1);
         
-        public string Type { get; set; }
         public string Title { get; set; }
         public string Slug { get; set; }
-        public string Source { get; set; }
         public string BlobUri { get; set; }
-        public string HeaderUri { get; set; }
+        public string Guid { get; set; }
+
+        [Obsolete("Use NoteData instead")] public string Type { get; set; }
+        [Obsolete("Use NoteData instead")] public string Source { get; set; }
+        [Obsolete("Use NoteData instead")] public string HeaderUri { get; set; }
 
         public DateTime Date => RefDate - TimeSpan.FromSeconds(double.Parse(RowKey));
 
@@ -30,5 +32,15 @@ namespace Alejof.Notes.Functions.TableStorage
                 RowKey = (RefDate - date).TotalSeconds.ToString("F0"),
             };
         }
+    }
+
+    ///
+    /// <summary>PartitionKey: Note Guid. RowKey: Data Name</summary>
+    ///
+    public class NoteDataEntity : TableEntity
+    {
+        public const string TableName = "NoteAppEntryData";
+
+        public string Value { get; set; }
     }
 }

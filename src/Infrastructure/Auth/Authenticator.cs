@@ -49,10 +49,10 @@ namespace Alejof.Notes.Auth
             var storageAccount = CloudStorageAccount.Parse(settings.StorageConnectionString);
             var tableClient = storageAccount.CreateCloudTableClient();
 
-            var table = tableClient.GetTableReference(AuthMappingEntity.TableName);
-            var mapping = await table.RetrieveAsync<AuthMappingEntity>(AuthMappingEntity.TenantKey, tenantId);
+            var table = tableClient.GetTableReference(TenantEntity.TableName);
+            var tenant = await table.RetrieveAsync<TenantEntity>(TenantEntity.DefaultKey, tenantId);
             
-            if (mapping == null)
+            if (tenant == null)
             {
                 log.LogWarning($"TenantId {tenantId} is not mapped");
                 return null;
@@ -62,7 +62,7 @@ namespace Alejof.Notes.Auth
             {
                 // 3. Get auth0 keys from https://{auth0 domain}/.well-known/jwks.json
                 
-                var jwks = await $"https://{mapping.Domain}/.well-known/jwks.json"
+                var jwks = await $"https://{tenant.Domain}/.well-known/jwks.json"
                     .GetJsonAsync();
 
                 // 4. Validate token against tenant-specific params
@@ -86,10 +86,10 @@ namespace Alejof.Notes.Auth
                     RequireSignedTokens = true,
 
                     ValidateIssuer = true,
-                    ValidIssuer = $"https://{mapping.Domain}/",
+                    ValidIssuer = $"https://{tenant.Domain}/",
 
                     ValidateAudience = true,
-                    ValidAudience = mapping.ClientID,
+                    ValidAudience = tenant.ClientID,
 
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new RsaSecurityKey(rsa),
