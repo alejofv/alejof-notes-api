@@ -35,7 +35,7 @@ namespace Alejof.Notes.Functions
             var entities = await Table.ScanAsync<MediaEntity>(this.AuthContext.TenantId);
 
             return entities
-                .Select(n => n.ToModel())
+                .Select(n => n.ToMediaModel())
                 .ToList()
                 .AsReadOnly();
         }
@@ -59,7 +59,7 @@ namespace Alejof.Notes.Functions
                 return "InsertAsync failed".AsFailedResult();
 
             return entity
-                .ToModel()
+                .ToMediaModel()
                 .AsOkResult();
         }
 

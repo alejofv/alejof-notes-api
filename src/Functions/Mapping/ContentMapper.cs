@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -9,18 +10,27 @@ namespace Alejof.Notes.Functions.Mapping
 {
     public static class ContentMapper
     {
-        public static Models.Content ToContentModel(this NoteEntity entity)
-        {            
+        private const string SourceDataName = "Source";
+        private const string SourceNameDataName = "SourceName";
+        
+        public static Models.Content MapToContentModel(this NoteEntity entity, IEnumerable<DataEntity> dataEntities)
+        {
+            var data = (dataEntities ?? Enumerable.Empty<DataEntity>())
+                    .ToDictionary(
+                        keySelector: d => d.Name,
+                        elementSelector: d => d.Value);
+                        
+            // Specific data name mappings
+            if (data.ContainsKey(SourceDataName))
+                data.Add(SourceNameDataName, data[SourceDataName].UrlDomain());
+            
             return new Models.Content
             {
                 Title = entity.Title,
                 Slug = entity.Slug,
-                Type = entity.Type,
-                Date = entity.Date.ToString("yyyy-MM-dd"),
-                SourceUrl = entity.Source,
-                SourceName = entity.Source.UrlDomain(),
                 ContentUrl = entity.BlobUri,
-                HeaderImageUrl = entity.HeaderUri,
+                Date = entity.Date.ToString("yyyy-MM-dd"),
+                Data = data,
             };
         }
     }

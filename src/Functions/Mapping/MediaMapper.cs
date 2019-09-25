@@ -12,7 +12,7 @@ namespace Alejof.Notes.Functions.Mapping
         public static string AsMediaName(this string name) => 
             $"{System.IO.Path.GetFileNameWithoutExtension(name)}-{DateTime.UtcNow.ToString("yyMMddhhmmss")}{System.IO.Path.GetExtension(name)}";
 
-        public static Models.Media ToModel(this MediaEntity entity) =>
+        public static Models.Media ToMediaModel(this MediaEntity entity) =>
             new Models.Media
             {
                 Id = entity.RowKey,

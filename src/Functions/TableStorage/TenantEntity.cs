@@ -8,7 +8,7 @@ namespace Alejof.Notes.Functions.TableStorage
     ///
     public class TenantEntity : TableEntity
     {
-        public const string TableName = "Auth0Mappings";
+        public const string TableName = "NoteAppTenants";
         public const string DefaultKey = "tenant";
 
         public string ClientID { get; set; }

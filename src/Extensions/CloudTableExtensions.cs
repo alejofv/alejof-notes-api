@@ -6,7 +6,7 @@ using Microsoft.WindowsAzure.Storage.Table;
 namespace Alejof.Notes.Extensions
 {
     public static class CloudTableExtensions
-    {
+    {   
         public static async Task<TEntity> RetrieveAsync<TEntity>(this CloudTable table, string partitionKey, string rowKey)
             where TEntity : TableEntity, new()
         {
@@ -22,6 +22,16 @@ namespace Alejof.Notes.Extensions
             var query = new TableQuery<TEntity>()
                 .Where($"PartitionKey eq '{partitionKey}'");
                 
+            var segment = await table.ExecuteQuerySegmentedAsync(query, null);
+            return segment.ToList();
+        }
+
+        public static async Task<List<TEntity>> QueryAsync<TEntity>(this CloudTable table, string partitionKey, string filter)
+            where TEntity : TableEntity, new()
+        {
+            var query = new TableQuery<TEntity>()
+                .Where($"PartitionKey eq '{partitionKey}' and {filter}");
+
             var segment = await table.ExecuteQuerySegmentedAsync(query, null);
             return segment.ToList();
         }
@@ -54,5 +64,19 @@ namespace Alejof.Notes.Extensions
         }
 
         public static bool IsSuccess(this TableResult result) => result.HttpStatusCode >= 200 && result.HttpStatusCode < 300;
+    }
+    
+    public static class FilterBy
+    {
+        public const string RowKey = "RowKey";
+
+        private const char NumRangeStart = (char)0x30;
+        private const char NumRangeEnd = (char)0x3A;
+
+        private const char RangeStart = (char)0x20;
+        private const char RangeEnd = (char)0x7F;
+
+        public static string Like(this string field, string value) => $"{field} gt '{value}{RangeStart}' and {field} lt '{value}{RangeEnd}'";
+        public static string InRange(this string field, string value) => $"{field} ge '{value}{NumRangeStart}' and {field} lt '{value}{NumRangeEnd}'";
     }
 }

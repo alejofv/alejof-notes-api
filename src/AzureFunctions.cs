@@ -6,6 +6,7 @@ using Alejof.Notes.Extensions;
 using Alejof.Notes.Functions;
 using Alejof.Notes.Functions.Mapping;
 using Alejof.Notes.Infrastructure;
+using Alejof.Notes.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -16,24 +17,20 @@ namespace Alejof.Notes
 {
     public static class AzureFunctions
     {
+        private static bool GetBoolEntry(IDictionary<string, string> dict, string param) =>
+            dict.TryGetValue(param, out var value) && bool.TryParse(value, out var boolValue) ? boolValue : false;
+                            
         [FunctionName("NotesGetAll")]
         public static async Task<IActionResult> GetNotesFunction(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "notes")] HttpRequest req, ILogger log)
         {                
             log.LogInformation($"C# Http trigger function executed: {nameof(GetNotesFunction)}");
-            
-            bool getBoolEntry(IDictionary<string, string> dict, string param) =>
-                dict.TryGetValue(param, out var value) && bool.TryParse(value, out var boolValue) ?
-                    boolValue : false;
 
-            var queryParams = req.GetQueryParameterDictionary();
-            
-            var published = getBoolEntry(queryParams, "published");
-            var preserve = getBoolEntry(queryParams, "preserveSources");
+            var published = GetBoolEntry(req.GetQueryParameterDictionary(), "published");
 
             return await FunctionRunner.For<NotesFunction>(log)
                 .Authenticate(req)
-                .AndRunAsync(f => f.GetNotes(published, preserve))
+                .AndRunAsync(f => f.GetNotes(published))
                 .AsIActionResult();
         }
 
@@ -43,9 +40,11 @@ namespace Alejof.Notes
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(GetNoteFunction)}");
 
+            var published = GetBoolEntry(req.GetQueryParameterDictionary(), "published");
+
             return await FunctionRunner.For<NotesFunction>(log)
                 .Authenticate(req)
-                .AndRunAsync(f => f.GetNote(id))
+                .AndRunAsync(f => f.GetNote(id, published))
                 .AsIActionResult();
         }
 
@@ -74,18 +73,19 @@ namespace Alejof.Notes
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(EditNoteFunction)}");
 
-            var note = await req.GetJsonBodyAsAsync<Models.Note>();
+            var note = await req.GetJsonBodyAsAsync<Note>();
             if (note == null)
                 return new BadRequestResult();
 
             note.Id = id;
 
-            var format = req.GetQueryParameterDictionary()
-                .TryGetValue("format", out var formatValue) ? formatValue : "md";
+            var queryParams = req.GetQueryParameterDictionary();
+            var published = GetBoolEntry(queryParams, "published");
+            var format = queryParams.TryGetValue("format", out var formatValue) ? formatValue : "md";
 
             return await FunctionRunner.For<NotesFunction>(log)
                 .Authenticate(req)
-                .AndRunAsync(f => f.EditNote(note, format))
+                .AndRunAsync(f => f.EditNote(note, format, published))
                 .AsIActionResult();
         }
 
@@ -155,7 +155,7 @@ namespace Alejof.Notes
         [FunctionName("Publish")]
         public static async Task<IActionResult> PublishNoteFunction(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", "delete", Route = "publish/{id}")] HttpRequest req, ILogger log, string id,
-            [Queue("netlify-deploy-signal")]IAsyncCollector<string> redeploySignalCollector)
+            [Queue("netlify-deploy-signal")]IAsyncCollector<string> deploySignalCollector)
         {
             log.LogInformation($"C# Http trigger function executed: {nameof(PublishFunction)}, method: {req.Method}");
 
@@ -169,11 +169,11 @@ namespace Alejof.Notes
                         var publishResult = await function.Publish(id, publish);
 
                         if (publishResult.Success)
-                            await redeploySignalCollector.AddAsync(function.AuthContext.TenantId);
+                            await deploySignalCollector.AddAsync(function.AuthContext.TenantId);
 
-                        return publishResult;
+                        return Result.Ok;
                     })
-                .AsIActionResult<Models.Result>(x => new OkResult());
+                .AsIActionResult(x => new OkResult());
         }
 
         [FunctionName("ContentGet")]
@@ -188,3 +188,4 @@ namespace Alejof.Notes
         }
     }
 }
+
