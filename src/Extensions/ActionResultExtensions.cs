@@ -7,10 +7,11 @@ namespace Alejof.Notes.Extensions
     public static class ActionResultExtensions
     {
         public static async Task<IActionResult> AsIActionResult<TResult>(this Task<TResult> resultTask, Func<TResult, IActionResult> resultMapper = null)
+            where TResult : class
         {
             var result = await resultTask;
 
-            if (result != default)
+            if (result != default(TResult))
             {
                 if (resultMapper != null)
                     return resultMapper(result);
@@ -22,6 +23,7 @@ namespace Alejof.Notes.Extensions
         }
         
         public static async Task<IActionResult> AsIActionResult<TResult>(this Task<(TResult result, UnauthorizedResult unauthorized)> tupleTask, Func<TResult, IActionResult> resultMapper = null)
+            where TResult : class
         {
             var (result, unauthorized) = await tupleTask;
             

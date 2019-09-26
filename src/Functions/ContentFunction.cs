@@ -18,17 +18,30 @@ namespace Alejof.Notes.Functions
         public ILogger Log { get; set; }
         public FunctionSettings Settings { get; set; }
 
-        private CloudTable _table = null;
-        private CloudTable Table => _table = _table ?? Settings.StorageConnectionString.GetTable(NoteEntity.TableName);
+        private CloudTable _noteTable = null;
+        private CloudTable _dataTable = null;
+        private CloudTable NoteTable => _noteTable = _noteTable ?? Settings.StorageConnectionString.GetTable(NoteEntity.TableName);
+        private CloudTable DataTable => _dataTable = _dataTable ?? Settings.StorageConnectionString.GetTable(DataEntity.TableName);
 
         public async Task<IReadOnlyCollection<Content>> GetContent(string tenantId)
         {
-            var publishedKey = NoteEntity.GetKey(tenantId, true);
-            Log.LogInformation($"Getting notes from storage. TableName: {NoteEntity.TableName}, Key: {publishedKey}");
+            var key = NoteEntity.GetKey(tenantId, true);
+            Log.LogInformation($"Getting notes from storage. TableName: {NoteEntity.TableName}, Key: {key}");
 
-            var notes = await Table.ScanAsync<NoteEntity>(publishedKey);
-            return notes
-                .Select(n => n.ToContentModel())
+            var notesTask = NoteTable.ScanAsync<NoteEntity>(key);
+            var dataTask = DataTable.ScanAsync<DataEntity>(key);
+
+            await Task.WhenAll(notesTask, dataTask);
+
+            return notesTask.Result
+                .Select(
+                    n =>
+                    {
+                        var data = dataTask.Result
+                            .Where(d => d.NoteId == n.Uid);
+
+                        return n.MapToContentModel(data);
+                    })
                 .ToList()
                 .AsReadOnly();
         }
