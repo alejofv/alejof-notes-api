@@ -21,21 +21,12 @@ namespace Alejof.Notes.Functions.Mapping
                     .ToDictionary(
                         keySelector: d => d.Name,
                         elementSelector: d => d.Value),
-
-                // Remove after migration
-                Type = entity.Type,
-                Source = entity.Source,
-                HeaderImageUrl = entity.HeaderUri,
             };
             
         public static NoteEntity MapFromModel(this NoteEntity entity, Models.Note note)
         {
             entity.Title = note.Title;
             entity.Slug = note.Slug;
-
-            entity.Type = note.Type;
-            entity.Source = note.Source;
-            entity.HeaderUri = note.HeaderImageUrl;
 
             return entity;
         }

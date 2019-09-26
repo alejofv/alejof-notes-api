@@ -21,10 +21,6 @@ namespace Alejof.Notes.Functions.TableStorage
         public string BlobUri { get; set; }
         public string Uid { get; set; }
 
-        [Obsolete("Use NoteData instead")] public string Type { get; set; }
-        [Obsolete("Use NoteData instead")] public string Source { get; set; }
-        [Obsolete("Use NoteData instead")] public string HeaderUri { get; set; }
-
         public DateTime Date => RefDate - TimeSpan.FromSeconds(double.Parse(RowKey));
         
         public NoteEntity CopyFrom(NoteEntity entity)

@@ -12,9 +12,5 @@ namespace Alejof.Notes.Models
         public string Content { get; set; }
         
         public IDictionary<string, string> Data { get; set; }
-
-        [Obsolete("Use Data instead")] public string Type { get; set; }
-        [Obsolete("Use Data instead")] public string Source { get; set; }
-        [Obsolete("Use Data instead")] public string HeaderImageUrl { get; set; }
     }
 }
