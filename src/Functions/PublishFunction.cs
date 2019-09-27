@@ -62,7 +62,7 @@ namespace Alejof.Notes.Functions
                 var deleteBatch = new TableBatchOperation();
                 oldData.ForEach(d => deleteBatch.Delete(d));
 
-                await Task.WhenAll(DataTable.ExecuteBatchAsync(insertBatch), DataTable.ExecuteBatchAsync(insertBatch));
+                await Task.WhenAll(DataTable.ExecuteBatchAsync(insertBatch), DataTable.ExecuteBatchAsync(deleteBatch));
             }
 
             return Result.Ok;
