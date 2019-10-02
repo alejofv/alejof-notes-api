@@ -131,9 +131,12 @@ namespace Alejof.Notes
                     {
                         var name = header.AsMediaName();
                         var result = await function.CreateMedia(name, req.Body);
-                        
+
                         if (result.Success)
-                            await thumbnailSignalCollector.AddAsync(function.GetMediaName(name));
+                        {
+                            var mediaPath = $"{MediaFunction.BlobContainerName}/{function.GetBlobName(name)}";
+                            await thumbnailSignalCollector.AddAsync(mediaPath);
+                        }
 
                         return result;
                     })
@@ -188,4 +191,3 @@ namespace Alejof.Notes
         }
     }
 }
-

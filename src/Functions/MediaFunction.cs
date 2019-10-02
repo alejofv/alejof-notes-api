@@ -40,11 +40,11 @@ namespace Alejof.Notes.Functions
                 .AsReadOnly();
         }
 
-        public string GetMediaName(string name) => $"{AuthContext.TenantId}/{name}";
+        public string GetBlobName(string name) => $"{AuthContext.TenantId}/{name}";
 
         public async Task<Result> CreateMedia(string name, Stream input)
         {
-            var blob = Container.GetBlockBlobReference(GetMediaName(name));
+            var blob = Container.GetBlockBlobReference(GetBlobName(name));
             var entity = MediaEntity
                 .New(this.AuthContext.TenantId);
                 
