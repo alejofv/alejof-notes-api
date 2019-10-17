@@ -15,6 +15,11 @@ steps:
   inputs:
     version: '3.0.x'
     packageType: sdk
+- task: UseDotNet@2
+  displayName: 'Install dotnet'
+  inputs:
+    version: '2.1.x'
+    packageType: runtime
 
 - script: 'dotnet publish -c Release -o $(build.artifactstagingdirectory)/functionapp'
   displayName: 'dotnet publish'
