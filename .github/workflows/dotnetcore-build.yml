@@ -1,0 +1,31 @@
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '3.1.100'
+
+    - name: Build
+      shell: pwsh
+      run: |
+        # If your function app project is not located in your repository's root
+        # Please change your directory for dotnet build in pushd
+        pushd .
+        dotnet build --configuration Release
+        popd
+    
+# For more information on GitHub Actions:
+#   https://help.github.com/en/categories/automating-your-workflow-with-github-actions

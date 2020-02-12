@@ -1,0 +1,45 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-publish:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '3.1.100'
+
+    - name: Build
+      shell: pwsh
+      run: |
+        # If your function app project is not located in your repository's root
+        # Please change your directory for dotnet build in pushd
+        pushd .
+        dotnet build --configuration Release --output ./output
+        popd
+    - name: 'Publish Azure Function'
+      uses: Azure/functions-action@v1
+      id: fa
+      with:
+        app-name: alejof-contact-processor
+        # If your function app project is not located in your repository's root
+        # Please consider prefixing the project path in this package parameter
+        package: './output'
+        # If you want to use publish profile credentials instead of Azure Service Principal
+        # Please uncomment the following line
+        publish-profile: ${{ secrets.SCM_CREDENTIALS }}
+
+# For more information on GitHub Actions:
+#   https://help.github.com/en/categories/automating-your-workflow-with-github-actions
+
+# Template from
+#   https://github.com/Azure/actions-workflow-samples/blob/master/windows-dotnet-functionapp-on-azure.yml
