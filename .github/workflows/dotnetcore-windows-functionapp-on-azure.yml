@@ -1,4 +1,4 @@
-name: .NET Core
+name: Publish
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - master
 
 jobs:
-  build:
+  build-and-publish:
 
     runs-on: windows-latest
 
@@ -18,7 +18,7 @@ jobs:
       with:
         dotnet-version: '3.1.100'
 
-    - name: 'Build'
+    - name: Build
       shell: pwsh
       run: |
         # If your function app project is not located in your repository's root
