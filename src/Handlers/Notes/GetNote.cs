@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -15,23 +17,27 @@ namespace Alejof.Notes.Handlers
     {
         public class NoteModel
         {
-            public string Id { get; set; }
-            public string DateText { get; set; }
-            public string Title { get; set; }
-            public string Slug { get; set; }
-            public string Content { get; set; }
-            public IDictionary<string, string> Data { get; set; }
+            public string Id { get; set; } = string.Empty;
+            public string DateText { get; set; } = string.Empty;
+            public string Title { get; set; } = string.Empty;
+            public string Slug { get; set; } = string.Empty;
+            public string Content { get; set; } = string.Empty;
+            public IDictionary<string, string?> Data { get; set; } = new Dictionary<string, string?>();
         }
         
         public class Request : BaseRequest, IRequest<Response>
         {
             public bool Published { get; set; }
-            public string NoteId { get; set; }
+            public string? NoteId { get; set; }
         }
 
         public class Response
         {
-            public IReadOnlyCollection<NoteModel> Data { get; set; }
+            public IReadOnlyCollection<NoteModel> Data { get; private set; }
+            public Response(List<NoteModel> data)
+            {
+                this.Data = data.AsReadOnly();
+            }
         }
 
         public class Handler : IRequestHandler<Request, Response>
@@ -62,7 +68,7 @@ namespace Alejof.Notes.Handlers
                 {
                     var model = _mapper.Map<NoteModel>(entity);
 
-                    model.Data = (data ?? Enumerable.Empty<DataEntity>())
+                    model.Data = data
                         .ToDictionary(
                             keySelector: d => d.Name,
                             elementSelector: d => d.Value);
@@ -80,14 +86,16 @@ namespace Alejof.Notes.Handlers
                 else
                 {
                     var (note, data, content) = await GetNote(request.TenantId, request.NoteId, request.Published);
+                    if (note != null)
+                    {
+                        var model = mapToModel(note, data);
+                        model.Content = content;
 
-                    var model = mapToModel(note, data);
-                    model.Content = content;
-
-                    result.Add(model);
+                        result.Add(model);
+                    }
                 }
 
-                return new Response { Data = result.AsReadOnly() };
+                return new Response(result);
             }
 
             private async Task<(IList<NoteEntity>, IList<DataEntity>)> GetNotes(string tenantId, bool published)
@@ -101,14 +109,16 @@ namespace Alejof.Notes.Handlers
                 return (notesTask.Result, dataTask.Result);
             }
 
-            private async Task<(NoteEntity, IList<DataEntity>, string)> GetNote(string tenantId, string id, bool published)
+            private async Task<(NoteEntity?, IList<DataEntity>, string)> GetNote(string tenantId, string id, bool published)
             {
                 var note = await _noteTable.RetrieveAsync<NoteEntity>(NoteEntity.GetKey(tenantId, published), id);
-                var data = await _dataTable.QueryAsync<DataEntity>(note?.PartitionKey, FilterBy.RowKey.Like(note?.Uid));
+                var data = note != null ?
+                    await _dataTable.QueryAsync<DataEntity>(note.PartitionKey, FilterBy.RowKey.Like(note.Uid))
+                    : Enumerable.Empty<DataEntity>().ToList();
 
                 // Get content from blob
-                var content = (string)null;
-                if (!string.IsNullOrEmpty(note.BlobUri))
+                var content = string.Empty;
+                if (!string.IsNullOrEmpty(note?.BlobUri))
                     content = await _container.DownloadAsync(note.BlobUri);
 
                 return (note, data, content);

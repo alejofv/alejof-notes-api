@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.WebJobs.Extensions.Http;
@@ -17,12 +19,6 @@ namespace Alejof.Notes.Extensions
         {
             var content = await req.ReadAsStringAsync();
             return JsonConvert.DeserializeObject<T>(content);
-        }
-
-        public static async Task<dynamic> GetJsonBody(this HttpRequest req)
-        {
-            var content = await req.ReadAsStringAsync();
-            return JsonConvert.DeserializeObject(content);
         }
     }
 }

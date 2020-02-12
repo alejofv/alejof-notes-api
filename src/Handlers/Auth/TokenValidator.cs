@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -13,9 +15,9 @@ namespace Alejof.Notes.Handlers.Auth
     {
         private readonly IConfigurationManager<OpenIdConnectConfiguration> _configurationManager;
         private readonly string _issuer;
-        private readonly string _audience;
+        private readonly string? _audience;
         
-        internal Auth0TokenValidator(string domain, string clientId)
+        internal Auth0TokenValidator(string domain, string? clientId)
         {
             _issuer = $"https://{domain}/";
             _audience = clientId;
@@ -27,7 +29,7 @@ namespace Alejof.Notes.Handlers.Auth
                 documentRetriever);
         }
 
-        public async Task<(ClaimsPrincipal, string)> ValidateTokenAsync(string token)
+        public async Task<(ClaimsPrincipal?, string?)> ValidateTokenAsync(string token)
         {
             var config = await _configurationManager.GetConfigurationAsync(CancellationToken.None);
 
@@ -35,7 +37,7 @@ namespace Alejof.Notes.Handlers.Auth
             {
                 RequireSignedTokens = true,
                 ValidAudience = _audience,
-                ValidateAudience = !string.IsNullOrEmpty(_audience),
+                ValidateAudience = !(string.IsNullOrWhiteSpace(_audience)),
                 ValidIssuer = _issuer,
                 ValidateIssuer = true,
                 ValidateIssuerSigningKey = true,
@@ -43,7 +45,7 @@ namespace Alejof.Notes.Handlers.Auth
                 IssuerSigningKeys = config.SigningKeys
             };
 
-            ClaimsPrincipal result = null;
+            ClaimsPrincipal? result = null;
             var tries = 0;
 
             while (result == null && tries <= 1)

@@ -3,6 +3,7 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <AzureFunctionsVersion></AzureFunctionsVersion>
     <RootNamespace>alejof_notes_api</RootNamespace>
+    <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Flurl" Version="2.8.2" />

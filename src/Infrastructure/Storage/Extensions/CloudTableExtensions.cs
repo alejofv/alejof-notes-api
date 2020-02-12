@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,7 +9,7 @@ namespace Alejof.Notes.Storage
 {
     public static class CloudTableExtensions
     {   
-        public static async Task<TEntity> RetrieveAsync<TEntity>(this CloudTable table, string partitionKey, string rowKey)
+        public static async Task<TEntity?> RetrieveAsync<TEntity>(this CloudTable table, string partitionKey, string rowKey)
             where TEntity : TableEntity, new()
         {
             var retrieveOperation = TableOperation.Retrieve<TEntity>(partitionKey, rowKey);
@@ -26,9 +28,12 @@ namespace Alejof.Notes.Storage
             return segment.ToList();
         }
 
-        public static async Task<List<TEntity>> QueryAsync<TEntity>(this CloudTable table, string partitionKey, string filter)
+        public static async Task<List<TEntity>> QueryAsync<TEntity>(this CloudTable table, string partitionKey, string? filter)
             where TEntity : TableEntity, new()
         {
+            if (string.IsNullOrWhiteSpace(filter))
+                return await table.ScanAsync<TEntity>(partitionKey);
+
             var query = new TableQuery<TEntity>()
                 .Where($"PartitionKey eq '{partitionKey}' and {filter}");
 
@@ -76,7 +81,7 @@ namespace Alejof.Notes.Storage
         private const char RangeStart = (char)0x20;
         private const char RangeEnd = (char)0x7F;
 
-        public static string Like(this string field, string value) => $"{field} gt '{value}{RangeStart}' and {field} lt '{value}{RangeEnd}'";
-        public static string InRange(this string field, string value) => $"{field} ge '{value}{NumRangeStart}' and {field} lt '{value}{NumRangeEnd}'";
+        public static string Like(this string field, string? value) => $"{field} gt '{value}{RangeStart}' and {field} lt '{value}{RangeEnd}'";
+        public static string InRange(this string field, string? value) => $"{field} ge '{value}{NumRangeStart}' and {field} lt '{value}{NumRangeEnd}'";
     }
 }

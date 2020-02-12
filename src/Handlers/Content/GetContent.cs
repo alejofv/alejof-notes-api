@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -12,21 +14,25 @@ namespace Alejof.Notes.Handlers
 {
     public static class GetContent
     {
-        public class Content
+        public class ContentModel
         {
-            public string Title { get; set; }
-            public string Slug { get; set; }
-            public string ContentUrl { get; set; }
-            public string Date { get; set; }
+            public string Title { get; set; } = string.Empty;
+            public string Slug { get; set; } = string.Empty;
+            public string ContentUrl { get; set; } = string.Empty;
+            public string Date { get; set; } = string.Empty;
 
-            public IDictionary<string, string> Data { get; set; }
+            public IDictionary<string, string?> Data { get; set; } = new Dictionary<string, string?>();
         }
         
         public class Request : BaseRequest, IRequest<Response> { }
-        
+
         public class Response
         {
-            public IReadOnlyCollection<Content> Data { get; set; }
+            public IReadOnlyCollection<ContentModel> Data { get; private set; }
+            public Response(List<ContentModel> data)
+            {
+                this.Data = data.AsReadOnly();
+            }
         }
 
         public class Handler : IRequestHandler<Request, Response>
@@ -55,26 +61,26 @@ namespace Alejof.Notes.Handlers
                     .Select(
                         entity => 
                         {
-                            var model = _mapper.Map<Content>(entity);
+                            var model = _mapper.Map<ContentModel>(entity);
                             var noteData = data.Where(d => d.NoteId == entity.Uid);
 
-                            model.Data = (noteData ?? Enumerable.Empty<DataEntity>())
+                            model.Data = noteData
                                 .ToDictionary(
-                                    keySelector: d => d.Name,
+                                    keySelector: d => d.Name!,
                                     elementSelector: d => d.Value);
 
                             // Specific data name mappings
-                            if (model.Data.ContainsKey(SourceDataName))
-                                model.Data.Add(SourceNameDataName, GetUrlDomain(model.Data[SourceDataName]));
+                            if (model.Data.TryGetValue(SourceDataName, out var sourceValue) && !string.IsNullOrWhiteSpace(sourceValue))
+                                model.Data.Add(SourceNameDataName, GetUrlDomain(sourceValue));
 
                             return model;
                         })
                     .ToList();
 
-                return new Response { Data = content.AsReadOnly() };
+                return new Response(content);
             }
 
-            private async Task<(IList<NoteEntity>, IList<DataEntity>)> GetNotes(string tenantId)
+            private async Task<(List<NoteEntity>, List<DataEntity>)> GetNotes(string tenantId)
             {
                 var key = NoteEntity.GetKey(tenantId, true);
                 
@@ -88,17 +94,14 @@ namespace Alejof.Notes.Handlers
             private static readonly Regex LinkParser = new Regex(@"\b(?:https?:\/\/|www\.)([^ \f\n\r\t\v\]]+)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             public static string GetUrlDomain(string value)
             {
-                if (!string.IsNullOrEmpty(value))
+                var match = LinkParser.Matches(value).FirstOrDefault();
+                if (match != null)
                 {
-                    var match = LinkParser.Matches(value).FirstOrDefault();
-                    if (match != null)
-                    {
-                        var url = match.Groups[1].Value;
+                    var url = match.Groups[1].Value;
 
-                        return url.Contains("/") ?
-                            url.Substring(0, url.IndexOf("/"))
-                            : url;
-                    }
+                    return url.Contains("/") ?
+                        url.Substring(0, url.IndexOf("/"))
+                        : url;
                 }
 
                 return "...";
@@ -109,7 +112,7 @@ namespace Alejof.Notes.Handlers
         {
             public Profile()
             {
-                CreateMap<NoteEntity, Content>()
+                CreateMap<NoteEntity, ContentModel>()
                     .ForMember(m => m.ContentUrl, o => o.MapFrom(e => e.BlobUri))
                     .ForMember(m => m.Date, o => o.MapFrom((e, m) => e.Date.ToString("yyyy-MM-dd")));
             }

@@ -1,3 +1,5 @@
+#nullable enable
+
 namespace Alejof.Notes.Storage
 {
     public class Blobs

@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,11 +17,11 @@ namespace Alejof.Notes.Handlers
     {
         public class Request : BaseRequest, IRequest<ActionResponse>
         {
-            public string Title { get; set; }
-            public string Slug { get; set; }
-            public string Format { get; set; }
-            public string Content { get; set; }
-            public IDictionary<string, string> Data { get; set; }
+            public string Title { get; set; } = string.Empty;
+            public string Slug { get; set; } = string.Empty;
+            public string Format { get; set; } = string.Empty;
+            public string Content { get; set; } = string.Empty;
+            public IDictionary<string, string?> Data { get; set; } = new Dictionary<string, string?>();
         }
 
         public class Handler : IRequestHandler<Request, ActionResponse>
@@ -57,7 +59,7 @@ namespace Alejof.Notes.Handlers
                 return ActionResponse.Ok;
             }
 
-            private async Task<NoteEntity> SaveNote(Request request, DateTime noteDate, string contentUri)
+            private async Task<NoteEntity?> SaveNote(Request request, DateTime noteDate, string contentUri)
             {
                 var entity = NoteEntity
                     .New(request.TenantId, false, noteDate);
@@ -73,7 +75,7 @@ namespace Alejof.Notes.Handlers
                 return null;
             }
 
-            private async Task SaveData(NoteEntity note, IDictionary<string, string> data)
+            private async Task SaveData(NoteEntity note, IDictionary<string, string?> data)
             {
                 var entities = data
                     .Select(

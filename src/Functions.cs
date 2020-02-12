@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,12 +25,12 @@ namespace Alejof.Notes
             this._mediator = mediator;
         }
 
-        private async Task<Handlers.Auth.Identity> Authenticate(HttpRequest req, ILogger log, [CallerMemberName]string memberName = "")
+        private async Task<Handlers.Auth.Identity?> Authenticate(HttpRequest req, ILogger log, [CallerMemberName]string memberName = "")
         {
             // Authenticate
             log.LogInformation($" => {memberName} authenticating.");
 
-            var (identity, msg) = await _mediator.Send(new Handlers.Auth.Request { HttpRequest = req });
+            var (identity, msg) = await _mediator.Send(new Handlers.Auth.Request(req));
             if (identity == null)
                 log.LogInformation(msg);
 

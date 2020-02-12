@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +16,7 @@ namespace Alejof.Notes.Handlers
     {
         public class Request : BaseRequest, IRequest<ActionResponse>
         {
-            public string NoteId { get; set; }
+            public string NoteId { get; set; } = string.Empty;
         }
 
         public class Handler : IRequestHandler<Request, ActionResponse>
@@ -51,15 +53,18 @@ namespace Alejof.Notes.Handlers
                     await _dataTable.ExecuteBatchAsync(batch);
                 }
 
-                await _container.DeleteAsync(entity.BlobUri);
+                if (!string.IsNullOrWhiteSpace(entity.BlobUri))
+                    await _container.DeleteAsync(entity.BlobUri);
                     
                 return ActionResponse.Ok;
             }
 
-            private async Task<(NoteEntity, List<DataEntity>)> GetNote(string tenantId, string id, bool published)
+            private async Task<(NoteEntity?, List<DataEntity>)> GetNote(string tenantId, string id, bool published)
             {
                 var note = await _noteTable.RetrieveAsync<NoteEntity>(NoteEntity.GetKey(tenantId, published), id);
-                var data = await _dataTable.QueryAsync<DataEntity>(note?.PartitionKey, FilterBy.RowKey.Like(note?.Uid));
+                var data = note != null ? 
+                    await _dataTable.QueryAsync<DataEntity>(note.PartitionKey, FilterBy.RowKey.Like(note.Uid))
+                    : Enumerable.Empty<DataEntity>().ToList();
 
                 return (note, data);
             }

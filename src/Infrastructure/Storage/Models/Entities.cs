@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using Microsoft.WindowsAzure.Storage.Table;
 
@@ -13,10 +15,10 @@ namespace Alejof.Notes.Storage
         public static string GetKey(string tenantId, bool published) => $"{tenantId}_{(published ? "published" : "draft")}";
         private static readonly DateTime RefDate = new DateTime(2100, 1, 1);
         
-        public string Title { get; set; }
-        public string Slug { get; set; }
-        public string BlobUri { get; set; }
-        public string Uid { get; set; }
+        public string? Title { get; set; }
+        public string? Slug { get; set; }
+        public string? BlobUri { get; set; }
+        public string? Uid { get; set; }
 
         public DateTime Date => RefDate - TimeSpan.FromSeconds(double.Parse(RowKey));
 
@@ -36,13 +38,10 @@ namespace Alejof.Notes.Storage
     {
         public const string TableName = "NoteAppEntryData";
         
-        public string Value { get; set; }
+        public string? Value { get; set; }
 
-        private string _noteId = null;
-        public string NoteId => _noteId = _noteId ?? RowKey.Split('_')[0];
-        
-        private string _name = null;
-        public string Name => _name = _name ?? RowKey.Split('_')[1];
+        public string NoteId => RowKey.Split('_')[0];
+        public string Name => RowKey.Split('_')[1];
     }
 
     ///
@@ -52,8 +51,8 @@ namespace Alejof.Notes.Storage
     {
         public const string TableName = "NoteAppMedia";
         
-        public string Name { get; set; }
-        public string BlobUri { get; set; }
+        public string? Name { get; set; }
+        public string? BlobUri { get; set; }
 
         public static MediaEntity New(string tenantId)
         {

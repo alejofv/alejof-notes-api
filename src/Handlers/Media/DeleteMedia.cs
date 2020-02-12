@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -14,7 +16,7 @@ namespace Alejof.Notes.Handlers
     {
         public class Request : BaseRequest, IRequest<ActionResponse>
         {
-            public string MediaId { get; set; }
+            public string MediaId { get; set; } = string.Empty;
         }
 
         public class Handler : IRequestHandler<Request, ActionResponse>
@@ -34,14 +36,16 @@ namespace Alejof.Notes.Handlers
             {
                 var entity = await _mediaTable.RetrieveAsync<NoteEntity>(request.TenantId, request.MediaId);
                 if (entity == null)
-                    return new ActionResponse { Success = false, Message = "Media not found" };
+                    return new ActionResponse { Message = "Media not found" };
 
                 var resultTask = _mediaTable.DeleteAsync(entity);
-                var deleteTask = _container.DeleteAsync(entity.BlobUri);
+                var deleteTask = !string.IsNullOrWhiteSpace(entity.BlobUri) ?
+                    _container.DeleteAsync(entity.BlobUri)
+                    : Task.FromResult(false);
 
                 await Task.WhenAll(resultTask, deleteTask);
                 if (!resultTask.Result)
-                    return new ActionResponse { Success = false, Message = "DeleteMedia failed" };
+                    return new ActionResponse { Message = "DeleteMedia failed" };
 
                 return ActionResponse.Ok;
             }

@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,14 +16,14 @@ namespace Alejof.Notes.Handlers
     {
         public class Request : BaseRequest, IRequest<ActionResponse>
         {
-            public string NoteId { get; set; }
+            public string NoteId { get; set; } = string.Empty;
             public bool Published { get; set; }
 
-            public string Title { get; set; }
-            public string Slug { get; set; }
-            public string Format { get; set; }
-            public string Content { get; set; }
-            public IDictionary<string, string> Data { get; set; }
+            public string Title { get; set; } = string.Empty;
+            public string Slug { get; set; } = string.Empty;
+            public string Format { get; set; } = string.Empty;
+            public string Content { get; set; } = string.Empty;
+            public IDictionary<string, string?> Data { get; set; } = new Dictionary<string, string?>();
         }
 
         public class Handler : IRequestHandler<Request, ActionResponse>
@@ -57,16 +59,18 @@ namespace Alejof.Notes.Handlers
                 // Update data
                 await SaveData(note, request.Data, oldData);
             
-                if (!string.Equals(uri, oldContentUri, StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrWhiteSpace(oldContentUri) && !string.Equals(uri, oldContentUri, StringComparison.OrdinalIgnoreCase))
                     await _container.DeleteAsync(oldContentUri);
 
                 return ActionResponse.Ok;
             }
 
-            private async Task<(NoteEntity, List<DataEntity>)> GetNote(string tenantId, string id, bool published)
+            private async Task<(NoteEntity?, List<DataEntity>)> GetNote(string tenantId, string id, bool published)
             {
                 var note = await _noteTable.RetrieveAsync<NoteEntity>(NoteEntity.GetKey(tenantId, published), id);
-                var data = await _dataTable.QueryAsync<DataEntity>(note?.PartitionKey, FilterBy.RowKey.Like(note?.Uid));
+                var data = note != null ? 
+                    await _dataTable.QueryAsync<DataEntity>(note.PartitionKey, FilterBy.RowKey.Like(note.Uid))
+                    : Enumerable.Empty<DataEntity>().ToList();
 
                 return (note, data);
             }
@@ -84,7 +88,7 @@ namespace Alejof.Notes.Handlers
                 return await _noteTable.ReplaceAsync(entity);
             }
 
-            private async Task SaveData(NoteEntity note, IDictionary<string, string> newData, IEnumerable<DataEntity> oldData)
+            private async Task SaveData(NoteEntity note, IDictionary<string, string?> newData, IEnumerable<DataEntity> oldData)
             {
                 var entities = newData
                     .Select(

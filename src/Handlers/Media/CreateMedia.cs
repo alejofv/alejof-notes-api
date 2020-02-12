@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -14,13 +16,13 @@ namespace Alejof.Notes.Handlers
     {
         public class Request : BaseRequest, IRequest<Response>
         {
-            public string Name { get; set; }
-            public Stream Content { get; set; }
+            public string Name { get; set; } = string.Empty;
+            public Stream? Content { get; set; }
         }
 
         public class Response : ActionResponse
         {
-            public string Path { get; set; }
+            public string Path { get; set; } = string.Empty;
         }
 
         public class Handler : IRequestHandler<Request, Response>
@@ -46,12 +48,15 @@ namespace Alejof.Notes.Handlers
                 entity.Name = request.Name;
                 entity.BlobUri = blob.Uri.ToString();
 
+                if (request.Content == null)
+                    return new Response { Message = "Empty content" };
+
                 var uploadTask = blob.UploadFromStreamAsync(request.Content);
                 var resultTask = _mediaTable.InsertAsync(entity);
 
                 await Task.WhenAll(uploadTask, resultTask);
                 if (!resultTask.Result)
-                    return new Response { Success = false, Message = "InsertMedia failed" };
+                    return new Response { Message = "InsertMedia failed" };
 
                 return new Response
                 {

@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,7 +17,7 @@ namespace Alejof.Notes.Handlers
     {
         public class Request : BaseRequest, IRequest<ActionResponse>
         {
-            public string NoteId { get; set; }
+            public string NoteId { get; set; } = string.Empty;
             public DateTime? Date { get; set; }
             public bool Publish { get; set; }
         }
@@ -43,21 +45,23 @@ namespace Alejof.Notes.Handlers
                 if (newNote == null)
                     return new ActionResponse { Success = false, Message = "CreateNote failed" };
 
-                await MoveData(oldData, newNote.PartitionKey, newNote.Uid);
+                await MoveData(oldData, newNote.PartitionKey);
                 await _noteTable.DeleteAsync(oldNote);
 
                 return ActionResponse.Ok;
             }
             
-            private async Task<(NoteEntity, List<DataEntity>)> GetNote(string tenantId, string id, bool published)
+            private async Task<(NoteEntity?, List<DataEntity>)> GetNote(string tenantId, string id, bool published)
             {
                 var note = await _noteTable.RetrieveAsync<NoteEntity>(NoteEntity.GetKey(tenantId, published), id);
-                var data = await _dataTable.QueryAsync<DataEntity>(note?.PartitionKey, FilterBy.RowKey.Like(note?.Uid));
+                var data = note != null ?
+                    await _dataTable.QueryAsync<DataEntity>(note.PartitionKey, FilterBy.RowKey.Like(note.Uid))
+                    : Enumerable.Empty<DataEntity>().ToList();
 
                 return (note, data);
             }
 
-            private async Task<NoteEntity> SaveNote(string tenantId, bool published, DateTime noteDate, NoteEntity entity)
+            private async Task<NoteEntity?> SaveNote(string tenantId, bool published, DateTime noteDate, NoteEntity entity)
             {
                 var newEntity = NoteEntity
                     .New(tenantId, published, noteDate);
@@ -74,7 +78,7 @@ namespace Alejof.Notes.Handlers
                 return null;
             }
 
-            private async Task MoveData(List<DataEntity> oldData, string newKey, string noteUid)
+            private async Task MoveData(List<DataEntity> oldData, string newKey)
             {
                 if (oldData.Any())
                 {
@@ -94,7 +98,9 @@ namespace Alejof.Notes.Handlers
                     var deleteBatch = new TableBatchOperation();
                     oldData.ForEach(d => deleteBatch.Delete(d));
 
-                    await Task.WhenAll(_dataTable.ExecuteBatchAsync(insertBatch), _dataTable.ExecuteBatchAsync(deleteBatch));
+                    await Task.WhenAll(
+                        _dataTable.ExecuteBatchAsync(insertBatch),
+                        _dataTable.ExecuteBatchAsync(deleteBatch));
                 }
             }
         }

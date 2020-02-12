@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,16 +14,20 @@ namespace Alejof.Notes.Handlers
     {
         public class MediaModel
         {
-            public string Id { get; set; }
-            public string Name { get; set; }
-            public string BlobUri { get; set; }
+            public string Id { get; set; } = string.Empty;
+            public string Name { get; set; } = string.Empty;
+            public string BlobUri { get; set; } = string.Empty;
         }
 
         public class Request : BaseRequest, IRequest<Response> { }
 
         public class Response
         {
-            public IReadOnlyCollection<MediaModel> Data { get; set; }
+            public IReadOnlyCollection<MediaModel> Data { get; private set; }
+            public Response(List<MediaModel> data)
+            {
+                this.Data = data.AsReadOnly();
+            }
         }
 
         public class Handler : IRequestHandler<Request, Response>
@@ -42,7 +48,7 @@ namespace Alejof.Notes.Handlers
                 var entities = await _mediaTable.ScanAsync<MediaEntity>(request.TenantId);
 
                 var result = _mapper.Map<IEnumerable<MediaEntity>, List<MediaModel>>(entities);
-                return new Response { Data = result.AsReadOnly() };
+                return new Response(result);
             }
         }
 
