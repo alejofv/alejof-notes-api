@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage.Blob;
 
-namespace Alejof.Notes.Extensions
+namespace Alejof.Notes.Storage
 {
     public static class CloudBlobExtensions
     {

@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage.Table;
 
-namespace Alejof.Notes.Extensions
+namespace Alejof.Notes.Storage
 {
     public static class CloudTableExtensions
     {   

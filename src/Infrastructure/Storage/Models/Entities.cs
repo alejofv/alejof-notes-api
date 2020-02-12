@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using Alejof.Notes.Models;
 using Microsoft.WindowsAzure.Storage.Table;
 
-namespace Alejof.Notes.Functions.TableStorage
+namespace Alejof.Notes.Storage
 {
     ///
     /// <summary>PartitionKey: "tenantId_(draft|published)". RowKey: ReverseDate</summary>
@@ -22,16 +19,6 @@ namespace Alejof.Notes.Functions.TableStorage
         public string Uid { get; set; }
 
         public DateTime Date => RefDate - TimeSpan.FromSeconds(double.Parse(RowKey));
-        
-        public NoteEntity CopyFrom(NoteEntity entity)
-        {
-            this.Title = entity.Title;
-            this.Slug = entity.Slug;
-            this.BlobUri = entity.BlobUri;
-            this.Uid = entity.Uid;
-
-            return this;
-        }
 
         public static NoteEntity New(string tenantId, bool published, DateTime date) =>
             new NoteEntity
@@ -56,13 +43,25 @@ namespace Alejof.Notes.Functions.TableStorage
         
         private string _name = null;
         public string Name => _name = _name ?? RowKey.Split('_')[1];
+    }
 
-        public DataEntity CopyFrom(DataEntity entity)
+    ///
+    /// <summary>PartitionKey: "tenantId". RowKey: GUID</summary>
+    ///
+    public class MediaEntity : TableEntity
+    {
+        public const string TableName = "NoteAppMedia";
+        
+        public string Name { get; set; }
+        public string BlobUri { get; set; }
+
+        public static MediaEntity New(string tenantId)
         {
-            this.RowKey = entity.RowKey;
-            this.Value = entity.Value;
-
-            return this;
+            return new MediaEntity
+            {
+                PartitionKey = tenantId,
+                RowKey = Guid.NewGuid().ToString(),
+            };
         }
     }
 }
