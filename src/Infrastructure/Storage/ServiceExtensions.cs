@@ -6,30 +6,14 @@ namespace Alejof.Notes.Storage
 {
     public static class ServiceExtensions
     {
-        public static IServiceCollection AddTableStorage(this IServiceCollection services)
+        public static IServiceCollection AddNotesStorage(this IServiceCollection services)
         {
             // Azure Storage
             var connectionString = System.Environment.GetEnvironmentVariable($"AzureWebJobsStorage", EnvironmentVariableTarget.Process);
+            var storageAccount = CloudStorageAccount.Parse(connectionString);
 
-            services.AddSingleton(svc =>
-            {
-                var storageAccount = CloudStorageAccount.Parse(connectionString);
-                return storageAccount.CreateCloudTableClient();
-            });
-
-            return services;
-        }
-
-        public static IServiceCollection AddBlobStorage(this IServiceCollection services)
-        {
-            // Azure Storage
-            var connectionString = System.Environment.GetEnvironmentVariable($"AzureWebJobsStorage", EnvironmentVariableTarget.Process);
-
-            services.AddSingleton(svc =>
-            {
-                var storageAccount = CloudStorageAccount.Parse(connectionString);
-                return storageAccount.CreateCloudBlobClient();
-            });
+            services.AddSingleton(svc => storageAccount.CreateCloudTableClient());
+            services.AddSingleton(svc => storageAccount.CreateCloudBlobClient());
 
             return services;
         }

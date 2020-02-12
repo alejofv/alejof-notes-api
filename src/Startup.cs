@@ -10,7 +10,7 @@ namespace Alejof.Notes
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            builder.Services.AddTableStorage();
+            builder.Services.AddNotesStorage();
             
             // Function dependencies
             builder.Services.AddMediatR(typeof(Startup));
