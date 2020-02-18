@@ -63,4 +63,25 @@ namespace Alejof.Notes.Storage
             };
         }
     }
+
+    ///
+    /// <summary>PartitionKey: "tenantId". RowKey: reverse ticks</summary>
+    ///
+    public class AuditLogEntity : TableEntity
+    {
+        public const string TableName = "NoteAppLogs";
+
+        public string? Email { get; set; }
+        public string? Action { get; set; }
+        public string? Message { get; set; }
+        
+        public static AuditLogEntity New(string tenantId)
+        {
+            return new AuditLogEntity
+            {
+                PartitionKey = tenantId,
+                RowKey = string.Format("{0:D19}", DateTime.MaxValue.Ticks - DateTime.UtcNow.Ticks),
+            };
+        }
+    }
 }

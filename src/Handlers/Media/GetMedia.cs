@@ -45,6 +45,8 @@ namespace Alejof.Notes.Handlers
 
             public async Task<Response> Handle(Request request, CancellationToken cancellationToken)
             {
+                await _mediaTable.CreateIfNotExistsAsync();
+                
                 var entities = await _mediaTable.ScanAsync<MediaEntity>(request.TenantId);
 
                 var result = _mapper.Map<IEnumerable<MediaEntity>, List<MediaModel>>(entities);

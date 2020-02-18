@@ -45,14 +45,14 @@ namespace Alejof.Notes
             if (identity == null)
                 return new UnauthorizedResult();
 
-            var response = await _mediator.Send(
+            var result = await _mediator.Send(
                 new Handlers.GetNote.Request
                 {
                     TenantId = identity.TenantId,
                     Published = req.GetPublishedQueryParam()
                 });
             
-            return new OkObjectResult(response.Data);
+            return new OkObjectResult(result.Data);
         }
 
         [FunctionName("NotesGet")]
@@ -63,7 +63,7 @@ namespace Alejof.Notes
             if (identity == null)
                 return new UnauthorizedResult();
 
-            var response = await _mediator.Send(
+            var result = await _mediator.Send(
                 new Handlers.GetNote.Request
                 {
                     TenantId = identity.TenantId,
@@ -71,10 +71,10 @@ namespace Alejof.Notes
                     NoteId = id,
                 });
 
-            if (!response.Data.Any())
+            if (!result.Data.Any())
                 return new NotFoundResult();
 
-            return new OkObjectResult(response.Data.First());
+            return new OkObjectResult(result.Data.First());
         }
 
         [FunctionName("NotesCreate")]
@@ -92,11 +92,21 @@ namespace Alejof.Notes
             request.TenantId = identity.TenantId;
             request.Format = req.GetFormatQueryParam();
             
-            var response = await _mediator.Send(request);
-            if (!response.Success)
-                return new ConflictObjectResult(response);
+            var result = await _mediator.Send(request);
 
-            return new OkObjectResult(response);
+            await _mediator.Publish(
+                new Handlers.Audit.Notification
+                {
+                    TenantId = identity.TenantId,
+                    Email = identity.Email,
+                    Action = nameof(CreateNoteFunction),
+                    Result = result,
+                });
+
+            if (!result.Success)
+                return new ConflictObjectResult(result);
+
+            return new OkObjectResult(result);
         }
 
         [FunctionName("NotesEdit")]
@@ -116,11 +126,21 @@ namespace Alejof.Notes
             request.Published = req.GetPublishedQueryParam();
             request.Format = req.GetFormatQueryParam();
             
-            var response = await _mediator.Send(request);
-            if (!response.Success)
-                return new ConflictObjectResult(response);
+            var result = await _mediator.Send(request);
 
-            return new OkObjectResult(response);
+            await _mediator.Publish(
+                new Handlers.Audit.Notification
+                {
+                    TenantId = identity.TenantId,
+                    Email = identity.Email,
+                    Action = nameof(EditNoteFunction),
+                    Result = result,
+                });
+
+            if (!result.Success)
+                return new ConflictObjectResult(result);
+
+            return new OkObjectResult(result);
         }
 
         [FunctionName("NotesDelete")]
@@ -131,17 +151,26 @@ namespace Alejof.Notes
             if (identity == null)
                 return new UnauthorizedResult();
 
-            var response = await _mediator.Send(
+            var result = await _mediator.Send(
                 new Handlers.DeleteNote.Request
                 {
                     TenantId = identity.TenantId,
                     NoteId = id
                 });
 
-            if (!response.Success)
-                return new ConflictObjectResult(response);
+            await _mediator.Publish(
+                new Handlers.Audit.Notification
+                {
+                    TenantId = identity.TenantId,
+                    Email = identity.Email,
+                    Action = nameof(DeleteNoteFunction),
+                    Result = result,
+                });
 
-            return new OkObjectResult(response);
+            if (!result.Success)
+                return new ConflictObjectResult(result);
+
+            return new OkObjectResult(result);
         }
 
         [FunctionName("MediaGetAll")]
@@ -152,13 +181,13 @@ namespace Alejof.Notes
             if (identity == null)
                 return new UnauthorizedResult();
 
-            var response = await _mediator.Send(
+            var result = await _mediator.Send(
                 new Handlers.GetMedia.Request
                 {
                     TenantId = identity.TenantId,
                 });
             
-            return new OkObjectResult(response.Data);
+            return new OkObjectResult(result.Data);
         }
 
         [FunctionName("MediaUpload")]
@@ -182,6 +211,15 @@ namespace Alejof.Notes
                     Content = req.Body,
                 });
 
+            await _mediator.Publish(
+                new Handlers.Audit.Notification
+                {
+                    TenantId = identity.TenantId,
+                    Email = identity.Email,
+                    Action = nameof(UploadMediaFunction),
+                    Result = result,
+                });
+
             if (!result.Success)
                 return new ConflictObjectResult(result);
 
@@ -197,17 +235,26 @@ namespace Alejof.Notes
             if (identity == null)
                 return new UnauthorizedResult();
 
-            var response = await _mediator.Send(
+            var result = await _mediator.Send(
                 new Handlers.DeleteMedia.Request
                 {
                     TenantId = identity.TenantId,
                     MediaId = id,
                 });
 
-            if (!response.Success)
-                return new ConflictObjectResult(response);
+            await _mediator.Publish(
+                new Handlers.Audit.Notification
+                {
+                    TenantId = identity.TenantId,
+                    Email = identity.Email,
+                    Action = nameof(DeleteMediaFunction),
+                    Result = result,
+                });
 
-            return new OkObjectResult(response);
+            if (!result.Success)
+                return new ConflictObjectResult(result);
+
+            return new OkObjectResult(result);
         }
 
         [FunctionName("Publish")]
@@ -225,6 +272,15 @@ namespace Alejof.Notes
                     TenantId = identity.TenantId,
                     NoteId = id,
                     Publish = string.Equals(req.Method, "post", StringComparison.OrdinalIgnoreCase),
+                });
+
+            await _mediator.Publish(
+                new Handlers.Audit.Notification
+                {
+                    TenantId = identity.TenantId,
+                    Email = identity.Email,
+                    Action = nameof(PublishNoteFunction),
+                    Result = result,
                 });
 
             if (!result.Success)

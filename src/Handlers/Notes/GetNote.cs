@@ -61,6 +61,9 @@ namespace Alejof.Notes.Handlers
 
             public async Task<Response> Handle(Request request, CancellationToken cancellationToken)
             {
+                await _noteTable.CreateIfNotExistsAsync();
+                await _dataTable.CreateIfNotExistsAsync();
+                
                 var result = new List<NoteModel>();
 
                 // local mapping function
