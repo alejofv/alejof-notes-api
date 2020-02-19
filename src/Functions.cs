@@ -37,6 +37,24 @@ namespace Alejof.Notes
             return identity;
         }
 
+        private async Task<TResponse> ProcessActionRequest<TRequest, TResponse>(Handlers.Auth.Identity identity, TRequest request)
+            where TRequest : IRequest<TResponse>
+            where TResponse : Handlers.ActionResponse
+        {
+            var result = await _mediator.Send<TResponse>(request);
+
+            await _mediator.Publish(
+                new Handlers.Audit.Notification(identity, request, result as Handlers.ActionResponse));
+
+            return result;
+        }
+
+        private Task<Handlers.ActionResponse> ProcessActionRequest<TRequest>(Handlers.Auth.Identity identity, TRequest request)
+            where TRequest : IRequest<Handlers.ActionResponse>
+        {
+            return this.ProcessActionRequest<TRequest, Handlers.ActionResponse>(identity, request);
+        }
+
         [FunctionName("NotesGetAll")]
         public async Task<IActionResult> GetNotes(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "notes")] HttpRequest req, ILogger log)
@@ -92,17 +110,7 @@ namespace Alejof.Notes
             request.TenantId = identity.TenantId;
             request.Format = req.GetFormatQueryParam();
             
-            var result = await _mediator.Send(request);
-
-            await _mediator.Publish(
-                new Handlers.Audit.Notification
-                {
-                    TenantId = identity.TenantId,
-                    Email = identity.Email,
-                    Action = nameof(CreateNoteFunction),
-                    Result = result,
-                });
-
+            var result = await this.ProcessActionRequest(identity, request);
             if (!result.Success)
                 return new ConflictObjectResult(result);
 
@@ -126,16 +134,7 @@ namespace Alejof.Notes
             request.Published = req.GetPublishedQueryParam();
             request.Format = req.GetFormatQueryParam();
             
-            var result = await _mediator.Send(request);
-
-            await _mediator.Publish(
-                new Handlers.Audit.Notification
-                {
-                    TenantId = identity.TenantId,
-                    Email = identity.Email,
-                    Action = nameof(EditNoteFunction),
-                    Result = result,
-                });
+            var result = await this.ProcessActionRequest(identity, request);
 
             if (!result.Success)
                 return new ConflictObjectResult(result);
@@ -151,20 +150,11 @@ namespace Alejof.Notes
             if (identity == null)
                 return new UnauthorizedResult();
 
-            var result = await _mediator.Send(
+            var result = await this.ProcessActionRequest(identity,
                 new Handlers.DeleteNote.Request
                 {
                     TenantId = identity.TenantId,
                     NoteId = id
-                });
-
-            await _mediator.Publish(
-                new Handlers.Audit.Notification
-                {
-                    TenantId = identity.TenantId,
-                    Email = identity.Email,
-                    Action = nameof(DeleteNoteFunction),
-                    Result = result,
                 });
 
             if (!result.Success)
@@ -203,21 +193,12 @@ namespace Alejof.Notes
             if (string.IsNullOrEmpty(header))
                 return new BadRequestResult();
 
-            var result = await _mediator.Send(
+            var result = await this.ProcessActionRequest<Handlers.CreateMedia.Request, Handlers.CreateMedia.Response>(identity,
                 new Handlers.CreateMedia.Request
                 {
                     TenantId = identity.TenantId,
                     Name = $"{System.IO.Path.GetFileNameWithoutExtension(header)}-{DateTime.UtcNow.ToString("yyMMddhhmmss")}{System.IO.Path.GetExtension(header)}",
                     Content = req.Body,
-                });
-
-            await _mediator.Publish(
-                new Handlers.Audit.Notification
-                {
-                    TenantId = identity.TenantId,
-                    Email = identity.Email,
-                    Action = nameof(UploadMediaFunction),
-                    Result = result,
                 });
 
             if (!result.Success)
@@ -235,20 +216,11 @@ namespace Alejof.Notes
             if (identity == null)
                 return new UnauthorizedResult();
 
-            var result = await _mediator.Send(
+            var result = await this.ProcessActionRequest(identity,
                 new Handlers.DeleteMedia.Request
                 {
                     TenantId = identity.TenantId,
                     MediaId = id,
-                });
-
-            await _mediator.Publish(
-                new Handlers.Audit.Notification
-                {
-                    TenantId = identity.TenantId,
-                    Email = identity.Email,
-                    Action = nameof(DeleteMediaFunction),
-                    Result = result,
                 });
 
             if (!result.Success)
@@ -266,21 +238,12 @@ namespace Alejof.Notes
             if (identity == null)
                 return new UnauthorizedResult();
 
-            var result = await _mediator.Send(
+            var result = await this.ProcessActionRequest(identity,
                 new Handlers.PublishNote.Request
                 {
                     TenantId = identity.TenantId,
                     NoteId = id,
                     Publish = string.Equals(req.Method, "post", StringComparison.OrdinalIgnoreCase),
-                });
-
-            await _mediator.Publish(
-                new Handlers.Audit.Notification
-                {
-                    TenantId = identity.TenantId,
-                    Email = identity.Email,
-                    Action = nameof(PublishNoteFunction),
-                    Result = result,
                 });
 
             if (!result.Success)

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Alejof.Notes.Storage;
 using MediatR;
 using Microsoft.WindowsAzure.Storage.Table;
+using Newtonsoft.Json;
 
 namespace Alejof.Notes.Handlers
 {
@@ -12,10 +13,16 @@ namespace Alejof.Notes.Handlers
     {
         public class Notification : INotification
         {
-            public string TenantId { get; set; } = string.Empty;
-            public string Email { get; set; } = string.Empty;
-            public string Action { get; set; } = string.Empty;
-            public ActionResponse? Result { get; set; }
+            public Auth.Identity Identity { get; private set; }
+            public object Request { get; private set; }
+            public ActionResponse Result { get; private set; }
+
+            public Notification(Auth.Identity identity, object request, ActionResponse result)
+            {
+                Identity = identity;
+                Request = request;
+                Result = result;
+            }
         }
 
         public class Handler : INotificationHandler<Notification>
@@ -30,13 +37,13 @@ namespace Alejof.Notes.Handlers
             public async Task Handle(Notification notification, CancellationToken cancellationToken)
             {
                 await _logTable.CreateIfNotExistsAsync();
-                
-                var entity = AuditLogEntity
-                    .New(notification.TenantId);
 
-                entity.Email = notification.Email;
-                entity.Action = notification.Action;
-                entity.Message = notification.Result?.Success == true ? "OK" : notification.Result?.Message;
+                var entity = AuditLogEntity
+                    .New(notification.Identity.TenantId);
+
+                entity.Action = notification.Request.GetType().FullName;
+                entity.Request = JsonConvert.SerializeObject(notification.Request);
+                entity.Response = notification.Result.Success ? "OK" : notification.Result.Message;
 
                 await _logTable.InsertAsync(entity);
             }

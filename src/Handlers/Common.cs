@@ -1,10 +1,17 @@
 #nullable enable
 
+using MediatR;
+
 namespace Alejof.Notes.Handlers
 {
     public abstract class BaseRequest
     {
         public string TenantId { get; set; } = string.Empty;
+    }
+
+    public abstract class BaseActionRequest : BaseRequest, IRequest<ActionResponse>
+    {
+        
     }
 
     public class ActionResponse

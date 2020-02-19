@@ -71,9 +71,9 @@ namespace Alejof.Notes.Storage
     {
         public const string TableName = "NoteAppLogs";
 
-        public string? Email { get; set; }
         public string? Action { get; set; }
-        public string? Message { get; set; }
+        public string? Request { get; set; }
+        public string? Response { get; set; }
         
         public static AuditLogEntity New(string tenantId)
         {
