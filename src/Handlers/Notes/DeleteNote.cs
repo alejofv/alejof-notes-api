@@ -14,9 +14,14 @@ namespace Alejof.Notes.Handlers
 {
     public class DeleteNote
     {
-        public class Request : BaseRequest, IRequest<ActionResponse>
+        public class Request : BaseRequest, IRequest<ActionResponse>, IAuditableRequest
         {
             public string NoteId { get; set; } = string.Empty;
+
+            public object AuditRecord => new
+            {
+                this.NoteId,
+            };
         }
 
         public class Handler : IRequestHandler<Request, ActionResponse>

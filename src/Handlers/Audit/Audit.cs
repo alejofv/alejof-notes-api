@@ -14,10 +14,10 @@ namespace Alejof.Notes.Handlers
         public class Notification : INotification
         {
             public Auth.Identity Identity { get; private set; }
-            public object Request { get; private set; }
+            public IAuditableRequest Request { get; private set; }
             public ActionResponse Result { get; private set; }
 
-            public Notification(Auth.Identity identity, object request, ActionResponse result)
+            public Notification(Auth.Identity identity, IAuditableRequest request, ActionResponse result)
             {
                 Identity = identity;
                 Request = request;
@@ -41,8 +41,8 @@ namespace Alejof.Notes.Handlers
                 var entity = AuditLogEntity
                     .New(notification.Identity.TenantId);
 
-                entity.Action = notification.Request.GetType().FullName;
-                entity.Request = JsonConvert.SerializeObject(notification.Request);
+                entity.Action = notification.Request.GetType().Name;
+                entity.Request = JsonConvert.SerializeObject(notification.Request.AuditRecord);
                 entity.Response = notification.Result.Success ? "OK" : notification.Result.Message;
 
                 await _logTable.InsertAsync(entity);

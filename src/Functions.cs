@@ -38,7 +38,7 @@ namespace Alejof.Notes
         }
 
         private async Task<TResponse> ProcessActionRequest<TRequest, TResponse>(Handlers.Auth.Identity identity, TRequest request)
-            where TRequest : IRequest<TResponse>
+            where TRequest : IRequest<TResponse>, Handlers.IAuditableRequest
             where TResponse : Handlers.ActionResponse
         {
             var result = await _mediator.Send<TResponse>(request);
@@ -50,7 +50,7 @@ namespace Alejof.Notes
         }
 
         private Task<Handlers.ActionResponse> ProcessActionRequest<TRequest>(Handlers.Auth.Identity identity, TRequest request)
-            where TRequest : IRequest<Handlers.ActionResponse>
+            where TRequest : IRequest<Handlers.ActionResponse>, Handlers.IAuditableRequest
         {
             return this.ProcessActionRequest<TRequest, Handlers.ActionResponse>(identity, request);
         }

@@ -15,11 +15,18 @@ namespace Alejof.Notes.Handlers
 {
     public class PublishNote
     {
-        public class Request : BaseRequest, IRequest<ActionResponse>
+        public class Request : BaseRequest, IRequest<ActionResponse>, IAuditableRequest
         {
             public string NoteId { get; set; } = string.Empty;
             public DateTime? Date { get; set; }
             public bool Publish { get; set; }
+
+            public object AuditRecord => new
+            {
+                this.NoteId,
+                this.Date,
+                this.Publish,
+            };
         }
 
         public class Handler : IRequestHandler<Request, ActionResponse>

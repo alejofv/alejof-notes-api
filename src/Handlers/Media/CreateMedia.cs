@@ -14,10 +14,15 @@ namespace Alejof.Notes.Handlers
 {
     public class CreateMedia
     {
-        public class Request : BaseRequest, IRequest<Response>
+        public class Request : BaseRequest, IRequest<Response>, IAuditableRequest
         {
             public string Name { get; set; } = string.Empty;
             public Stream? Content { get; set; }
+
+            public object AuditRecord => new
+            {
+                this.Name,
+            };
         }
 
         public class Response : ActionResponse

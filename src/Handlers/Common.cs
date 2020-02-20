@@ -9,6 +9,11 @@ namespace Alejof.Notes.Handlers
         public string TenantId { get; set; } = string.Empty;
     }
 
+    public interface IAuditableRequest
+    {
+        object AuditRecord { get; }
+    }
+
     public abstract class BaseActionRequest : BaseRequest, IRequest<ActionResponse>
     {
         

@@ -15,13 +15,21 @@ namespace Alejof.Notes.Handlers
 {
     public class CreateNote
     {
-        public class Request : BaseRequest, IRequest<ActionResponse>
+        public class Request : BaseRequest, IRequest<ActionResponse>, IAuditableRequest
         {
             public string Title { get; set; } = string.Empty;
             public string Slug { get; set; } = string.Empty;
             public string Format { get; set; } = string.Empty;
             public string Content { get; set; } = string.Empty;
             public IDictionary<string, string?> Data { get; set; } = new Dictionary<string, string?>();
+
+            public object AuditRecord => new
+            {
+                this.Title,
+                this.Slug,
+                this.Format,
+                this.Data,
+            };
         }
 
         public class Handler : IRequestHandler<Request, ActionResponse>
