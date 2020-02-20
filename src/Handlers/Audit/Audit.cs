@@ -41,7 +41,9 @@ namespace Alejof.Notes.Handlers
                 var entity = AuditLogEntity
                     .New(notification.Identity.TenantId);
 
-                entity.Action = notification.Request.GetType().Name;
+                var requestType = notification.Request.GetType();
+                
+                entity.Action = requestType.DeclaringType?.Name ?? requestType.FullName;
                 entity.Request = JsonConvert.SerializeObject(notification.Request.AuditRecord);
                 entity.Response = notification.Result.Success ? "OK" : notification.Result.Message;
 
