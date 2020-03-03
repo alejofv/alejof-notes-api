@@ -15,7 +15,7 @@ namespace Alejof.Notes.Handlers
 {
     public class CreateNote
     {
-        public class Request : BaseRequest, IRequest<ActionResponse>, IAuditableRequest
+        public class Request : BaseRequest, IRequest<Response>, IAuditableRequest
         {
             public string Title { get; set; } = string.Empty;
             public string Slug { get; set; } = string.Empty;
@@ -32,7 +32,12 @@ namespace Alejof.Notes.Handlers
             };
         }
 
-        public class Handler : IRequestHandler<Request, ActionResponse>
+        public class Response : ActionResponse
+        {
+            public string NoteId { get; set; } = string.Empty;
+        }
+
+        public class Handler : IRequestHandler<Request, Response>
         {
             private readonly CloudTable _noteTable;
             private readonly CloudTable _dataTable;
@@ -51,7 +56,7 @@ namespace Alejof.Notes.Handlers
                 this._mapper = mapper;
             }
 
-            public async Task<ActionResponse> Handle(Request request, CancellationToken cancellationToken)
+            public async Task<Response> Handle(Request request, CancellationToken cancellationToken)
             {
                 var noteDate = DateTime.UtcNow;
 
@@ -60,11 +65,11 @@ namespace Alejof.Notes.Handlers
 
                 var note = await SaveNote(request, noteDate, uri);
                 if (note == null)
-                    return new ActionResponse { Success = false, Message = "CreateNote failed" };
+                    return new Response { Message = "CreateNote failed" };
 
                 // Create and insert data
                 await SaveData(note, request.Data);
-                return ActionResponse.Ok;
+                return new Response { Success = true, NoteId = note.RowKey  };
             }
 
             private async Task<NoteEntity?> SaveNote(Request request, DateTime noteDate, string contentUri)
@@ -86,6 +91,7 @@ namespace Alejof.Notes.Handlers
             private async Task SaveData(NoteEntity note, IDictionary<string, string?> data)
             {
                 var entities = data
+                    .Where(d => !string.IsNullOrWhiteSpace(d.Value))
                     .Select(
                         entry => new DataEntity
                         {

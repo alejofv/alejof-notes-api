@@ -78,9 +78,9 @@ namespace Alejof.Notes.Handlers
                 newEntity.Title = entity.Title;
                 newEntity.BlobUri = entity.BlobUri;
 
-                var result = await _noteTable.InsertAsync(entity);
+                var result = await _noteTable.InsertAsync(newEntity);
                 if (result)
-                    return entity;
+                    return newEntity;
 
                 return null;
             }

@@ -110,7 +110,7 @@ namespace Alejof.Notes
             request.TenantId = identity.TenantId;
             request.Format = req.GetFormatQueryParam();
             
-            var result = await this.ProcessActionRequest(identity, request);
+            var result = await this.ProcessActionRequest<Handlers.CreateNote.Request, Handlers.CreateNote.Response>(identity, request);
             if (!result.Success)
                 return new ConflictObjectResult(result);
 

@@ -101,6 +101,7 @@ namespace Alejof.Notes.Handlers
             private async Task SaveData(NoteEntity note, IDictionary<string, string?> newData, IEnumerable<DataEntity> oldData)
             {
                 var entities = newData
+                    .Where(d => !string.IsNullOrWhiteSpace(d.Value))
                     .Select(
                         entry => new DataEntity
                         {
