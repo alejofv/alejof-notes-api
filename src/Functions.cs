@@ -119,7 +119,8 @@ namespace Alejof.Notes
 
         [FunctionName("NotesEdit")]
         public async Task<IActionResult> EditNoteFunction(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "notes/{id}")] HttpRequest req, ILogger log, string id)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "notes/{id}")] HttpRequest req, ILogger log, string id,
+            [Queue("netlify-deploy-signal")]IAsyncCollector<string> deploySignalCollector)
         {
             var identity = await this.Authenticate(req, log);
             if (identity == null)
@@ -139,6 +140,9 @@ namespace Alejof.Notes
             if (!result.Success)
                 return new ConflictObjectResult(result);
 
+            if (request.Published)
+                await deploySignalCollector.AddAsync(identity.TenantId);
+                
             return new OkObjectResult(result);
         }
 
