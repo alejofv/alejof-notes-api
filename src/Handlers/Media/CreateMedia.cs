@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -47,8 +48,11 @@ namespace Alejof.Notes.Handlers
             {
                 var blobName = GetBlobName(request.TenantId, request.Name);
                 var blob = _container.GetBlockBlobReference(blobName);
-                var entity = MediaEntity
-                    .New(request.TenantId);
+                var entity = new MediaEntity
+                {
+                    PartitionKey = request.TenantId,
+                    RowKey = Guid.NewGuid().ToString(),
+                };
                     
                 entity.Name = request.Name;
                 entity.BlobUri = blob.Uri.ToString();

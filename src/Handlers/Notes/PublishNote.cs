@@ -3,8 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Alejof.Notes.Extensions;
 using Alejof.Notes.Storage;
 using AutoMapper;
 using MediatR;
@@ -33,83 +35,78 @@ namespace Alejof.Notes.Handlers
         {
             private readonly CloudTable _noteTable;
             private readonly CloudTable _dataTable;
+            private readonly CloudBlobContainer _container;
 
             public Handler(
-                CloudTableClient tableClient)
+                CloudTableClient tableClient,
+                CloudBlobClient blobClient)
             {
                 this._noteTable = tableClient.GetTableReference(NoteEntity.TableName);
                 this._dataTable = tableClient.GetTableReference(DataEntity.TableName);
+
+                this._container = blobClient.GetContainerReference(Blobs.ContentContainerName);
             }
 
             public async Task<ActionResponse> Handle(Request request, CancellationToken cancellationToken)
             {
-                var (oldNote, oldData) = await GetNote(request.TenantId, request.NoteId, !request.Publish);
-                if (oldNote == null)
+                var (note, data, content) = await GetNote(request.TenantId, request.NoteId);
+                if (note == null)
                     return new ActionResponse { Success = false, Message = "Note not found" };
 
-                var noteDate = request.Date ?? DateTime.UtcNow;
-                var newNote = await SaveNote(request.TenantId, request.Publish, noteDate, oldNote);
-                if (newNote == null)
-                    return new ActionResponse { Success = false, Message = "CreateNote failed" };
+                if (string.IsNullOrWhiteSpace(note.Slug))
+                    return new ActionResponse { Success = false, Message = "Note slug not valid" };
 
-                await MoveData(oldData, newNote.PartitionKey);
-                await _noteTable.DeleteAsync(oldNote);
+                var noteDate = request.Date ?? DateTime.UtcNow;
+                var format = System.IO.Path.GetExtension(note.BlobUri) ?? ".md";
+
+                // Create published blob
+                var filename = GetNoteFilename(request.TenantId, noteDate, note.Slug, format.Replace(".", ""));
+                var newContent = ProcessContent(data, content);
+                var uri = await _container.UploadAsync(content, filename);
+
+                var result = await SaveNote(note, uri);
+                if (!result)
+                    return new ActionResponse { Success = false, Message = "UpdateNote failed" };
 
                 return ActionResponse.Ok;
             }
-            
-            private async Task<(NoteEntity?, List<DataEntity>)> GetNote(string tenantId, string id, bool published)
-            {
-                var note = await _noteTable.RetrieveAsync<NoteEntity>(NoteEntity.GetKey(tenantId, published), id);
-                var data = note != null ?
-                    await _dataTable.QueryAsync<DataEntity>(note.PartitionKey, FilterBy.RowKey.Like(note.Uid))
-                    : Enumerable.Empty<DataEntity>().ToList();
 
-                return (note, data);
+            private async Task<(NoteEntity?, IList<DataEntity>, string)> GetNote(string tenantId, string id)
+            {
+                var noteTask = _noteTable.RetrieveAsync<NoteEntity>(tenantId, id);
+                var dataTask = _dataTable.QueryAsync<DataEntity>(tenantId, FilterBy.RowKey.Like(id));
+
+                await Task.WhenAll(noteTask, dataTask);
+                var note = noteTask.Result;
+
+                // Get content from blob
+                var content = string.Empty;
+                if (!string.IsNullOrEmpty(note?.BlobUri))
+                    content = await _container.DownloadAsync(note.BlobUri);
+
+                return (note, dataTask.Result, content);
             }
 
-            private async Task<NoteEntity?> SaveNote(string tenantId, bool published, DateTime noteDate, NoteEntity entity)
+            private async Task<bool> SaveNote(NoteEntity entity, string publishedBlobUri)
             {
-                var newEntity = NoteEntity
-                    .New(tenantId, published, noteDate);
+                entity.PublishedBlobUri = publishedBlobUri;
+                entity.IsPublished = !string.IsNullOrWhiteSpace(publishedBlobUri);
 
-                newEntity.Uid = entity.Uid;
-                newEntity.Slug = entity.Slug;
-                newEntity.Title = entity.Title;
-                newEntity.BlobUri = entity.BlobUri;
-
-                var result = await _noteTable.InsertAsync(newEntity);
-                if (result)
-                    return newEntity;
-
-                return null;
+                return await _noteTable.ReplaceAsync(entity);
             }
 
-            private async Task MoveData(List<DataEntity> oldData, string newKey)
-            {
-                if (oldData.Any())
-                {
-                    var newData = oldData
-                        .Select(
-                            d => new DataEntity
-                            {
-                                PartitionKey = newKey,
-                                RowKey = d.RowKey,
-                                Value = d.Value,
-                            })
-                        .ToList();
+            // Add data as Front matter
+            // TODO: use configurable data by tenant
+            private string ProcessContent(IList<DataEntity> data, string content)
+                => new StringBuilder()
+                    .AppendLine("---")
+                    .AppendItems(data, d => $"{d.Name}: \"{d.Value}\"")
+                    .AppendLine("---")
+                    .AppendLine(content)
+                    .ToString();
 
-                    var insertBatch = new TableBatchOperation();
-                    newData.ForEach(d => insertBatch.Insert(d));
-
-                    var deleteBatch = new TableBatchOperation();
-                    oldData.ForEach(d => deleteBatch.Delete(d));
-
-                    await Task.WhenAll(
-                        _dataTable.ExecuteBatchAsync(insertBatch),
-                        _dataTable.ExecuteBatchAsync(deleteBatch));
-                }
-            }
+            private string GetNoteFilename(string tenantId, DateTime date, string slug, string format)
+                => $"{tenantId}/{date.ToString("yyyy-MM-dd")}-{slug}.{format}";
         }
     }
 }

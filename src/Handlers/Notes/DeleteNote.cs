@@ -42,7 +42,7 @@ namespace Alejof.Notes.Handlers
 
             public async Task<ActionResponse> Handle(Request request, CancellationToken cancellationToken)
             {
-                var (entity, data) = await GetNote(request.TenantId, request.NoteId, false);
+                var (entity, data) = await GetNote(request.TenantId, request.NoteId);
                 if (entity == null)
                     return new ActionResponse { Success = false, Message = "Note not found" };
 
@@ -64,14 +64,13 @@ namespace Alejof.Notes.Handlers
                 return ActionResponse.Ok;
             }
 
-            private async Task<(NoteEntity?, List<DataEntity>)> GetNote(string tenantId, string id, bool published)
+            private async Task<(NoteEntity?, List<DataEntity>)> GetNote(string tenantId, string id)
             {
-                var note = await _noteTable.RetrieveAsync<NoteEntity>(NoteEntity.GetKey(tenantId, published), id);
-                var data = note != null ? 
-                    await _dataTable.QueryAsync<DataEntity>(note.PartitionKey, FilterBy.RowKey.Like(note.Uid))
-                    : Enumerable.Empty<DataEntity>().ToList();
+                var noteTask = _noteTable.RetrieveAsync<NoteEntity>(tenantId, id);
+                var dataTask = _dataTable.QueryAsync<DataEntity>(tenantId, FilterBy.RowKey.Like(id));
 
-                return (note, data);
+                await Task.WhenAll(noteTask, dataTask);
+                return (noteTask.Result, dataTask.Result);
             }
         }
     }
