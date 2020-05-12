@@ -181,7 +181,7 @@ namespace Alejof.Notes
         [FunctionName("MediaUpload")]
         public async Task<IActionResult> UploadMediaFunction(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "media")] HttpRequest req, ILogger log, IBinder binder,
-            [Queue("media-thumbnail-signal")]IAsyncCollector<string> thumbnailSignalCollector)
+            [Queue("media-thumbnail-signal", Connection = "StorageConnectionString")]IAsyncCollector<string> thumbnailSignalCollector)
         {
             var identity = await this.Authenticate(req, log);
             if (identity == null)
@@ -230,7 +230,7 @@ namespace Alejof.Notes
         [FunctionName("Publish")]
         public async Task<IActionResult> PublishNoteFunction(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", "delete", Route = "publish/{id}")] HttpRequest req, ILogger log, string id,
-            [Queue("netlify-deploy-signal")]IAsyncCollector<string> deploySignalCollector)
+            [Queue("netlify-deploy-signal", Connection = "StorageConnectionString")]IAsyncCollector<string> deploySignalCollector)
         {
             var identity = await this.Authenticate(req, log);
             if (identity == null)
