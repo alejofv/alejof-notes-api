@@ -53,18 +53,30 @@ namespace Alejof.Notes.Handlers
                 if (note == null)
                     return new ActionResponse { Success = false, Message = "Note not found" };
 
-                if (string.IsNullOrWhiteSpace(note.Slug))
-                    return new ActionResponse { Success = false, Message = "Note slug not valid" };
+                if (request.Publish)
+                {
+                    if (string.IsNullOrWhiteSpace(note.Slug))
+                        return new ActionResponse { Success = false, Message = "Note slug not valid" };
 
-                var noteDate = request.Date ?? DateTime.UtcNow;
-                var format = System.IO.Path.GetExtension(note.BlobUri) ?? ".md";
+                    var noteDate = request.Date ?? DateTime.UtcNow;
+                    var format = System.IO.Path.GetExtension(note.BlobUri) ?? ".md";
 
-                // Create published blob
-                var filename = GetNoteFilename(request.TenantId, noteDate, note.Slug, format.Replace(".", ""));
-                var newContent = ProcessContent(data, content);
-                var uri = await _container.UploadAsync(content, filename);
+                    // Create published blob
+                    var filename = GetNoteFilename(request.TenantId, noteDate, note.Slug, format.Replace(".", ""));
+                    var newContent = ProcessContent(data, content);
 
-                var result = await SaveNote(note, uri);
+                    note.PublishedBlobUri = await _container.UploadAsync(content, filename);
+                }
+                else
+                {
+                    // Delete published blob
+                    if (!string.IsNullOrWhiteSpace(note.PublishedBlobUri))
+                        await _container.DeleteAsync(note.PublishedBlobUri);
+
+                    note.PublishedBlobUri = null;
+                }
+
+                var result = await SaveNote(note, request.Publish);
                 if (!result)
                     return new ActionResponse { Success = false, Message = "UpdateNote failed" };
 
@@ -87,11 +99,9 @@ namespace Alejof.Notes.Handlers
                 return (note, dataTask.Result, content);
             }
 
-            private async Task<bool> SaveNote(NoteEntity entity, string publishedBlobUri)
+            private async Task<bool> SaveNote(NoteEntity entity, bool published)
             {
-                entity.PublishedBlobUri = publishedBlobUri;
-                entity.IsPublished = !string.IsNullOrWhiteSpace(publishedBlobUri);
-
+                entity.IsPublished = published;
                 return await _noteTable.ReplaceAsync(entity);
             }
 
