@@ -9,7 +9,7 @@ namespace Alejof.Notes.Storage
         public static IServiceCollection AddNotesStorage(this IServiceCollection services)
         {
             // Azure Storage
-            var connectionString = System.Environment.GetEnvironmentVariable($"AzureWebJobsStorage", EnvironmentVariableTarget.Process);
+            var connectionString = System.Environment.GetEnvironmentVariable($"StorageConnectionString", EnvironmentVariableTarget.Process);
             var storageAccount = CloudStorageAccount.Parse(connectionString);
 
             services.AddSingleton(svc => storageAccount.CreateCloudTableClient());
