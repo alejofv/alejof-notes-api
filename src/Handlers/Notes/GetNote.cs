@@ -65,9 +65,6 @@ namespace Alejof.Notes.Handlers
 
             public async Task<Response> Handle(AllNotesRequest request, CancellationToken cancellationToken)
             {
-                await _noteTable.CreateIfNotExistsAsync();
-                await _dataTable.CreateIfNotExistsAsync();
-                
                 var result = new List<NoteModel>();
 
                 var (notes, data) = await GetNotes(request.TenantId);
@@ -81,9 +78,6 @@ namespace Alejof.Notes.Handlers
 
             public async Task<Response> Handle(SingleNoteRequest request, CancellationToken cancellationToken)
             {
-                await _noteTable.CreateIfNotExistsAsync();
-                await _dataTable.CreateIfNotExistsAsync();
-
                 var result = new List<NoteModel>();
 
                 var (note, data, content) = await GetNote(request.TenantId, request.NoteId);

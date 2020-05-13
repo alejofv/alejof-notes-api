@@ -36,8 +36,6 @@ namespace Alejof.Notes.Handlers
             
             public async Task Handle(Notification notification, CancellationToken cancellationToken)
             {
-                await _logTable.CreateIfNotExistsAsync();
-
                 var entity = AuditLogEntity
                     .New(notification.Identity.TenantId);
 

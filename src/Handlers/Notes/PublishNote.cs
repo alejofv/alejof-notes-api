@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Alejof.Notes.Extensions;
 using Alejof.Notes.Storage;
 using AutoMapper;
+using Humanizer;
 using MediatR;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.Table;
@@ -44,7 +45,7 @@ namespace Alejof.Notes.Handlers
                 this._noteTable = tableClient.GetTableReference(NoteEntity.TableName);
                 this._dataTable = tableClient.GetTableReference(DataEntity.TableName);
 
-                this._container = blobClient.GetContainerReference(Blobs.ContentContainerName);
+                this._container = blobClient.GetContainerReference(Blobs.PublishContainerName);
             }
 
             public async Task<ActionResponse> Handle(Request request, CancellationToken cancellationToken)
@@ -63,7 +64,7 @@ namespace Alejof.Notes.Handlers
 
                     // Create published blob
                     var filename = GetNoteFilename(request.TenantId, noteDate, note.Slug, format.Replace(".", ""));
-                    var newContent = ProcessContent(data, content);
+                    content = ProcessContent(note, data, content);
 
                     note.PublishedBlobUri = await _container.UploadAsync(content, filename);
                 }
@@ -107,10 +108,12 @@ namespace Alejof.Notes.Handlers
 
             // Add data as Front matter
             // TODO: use configurable data by tenant
-            private string ProcessContent(IList<DataEntity> data, string content)
+            private string ProcessContent(NoteEntity note, IList<DataEntity> data, string content)
                 => new StringBuilder()
                     .AppendLine("---")
-                    .AppendItems(data, d => $"{d.Name}: \"{d.Value}\"")
+                    .AppendLine($"layout: note_entry")
+                    .AppendLine($"title: \"{note.Title}\"")
+                    .AppendItems(data, d => $"{d.Name.Camelize()}: \"{d.Value}\"")
                     .AppendLine("---")
                     .AppendLine(content)
                     .ToString();

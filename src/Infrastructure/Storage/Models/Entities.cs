@@ -19,8 +19,16 @@ namespace Alejof.Notes.Storage
         public string? PublishedBlobUri { get; set; }
     }
 
+    public class LegacyNoteEntity : NoteEntity
+    {
+        private static readonly DateTime RefDate = new DateTime(2100, 1, 1);
+
+        public string? Uid { get; set; }
+        public DateTime Date => RefDate - TimeSpan.FromSeconds(double.Parse(RowKey));
+    }
+
     /// <summary>
-    /// PartitionKey: "tenantId". RowKey: noteGuid-Name
+    /// PartitionKey: "tenantId". RowKey: noteId-Name
     /// </summary>
     public class DataEntity : TableEntity
     {
@@ -28,8 +36,17 @@ namespace Alejof.Notes.Storage
         
         public string? Value { get; set; }
 
-        public string NoteId => RowKey.Split('_')[0];
-        public string Name => RowKey.Split('_')[1];
+        public virtual string NoteId => RowKey.Split('-')[0];
+        public virtual string Name => RowKey.Split('-')[1];
+    }
+
+    /// <summary>
+    /// PartitionKey: "tenantId". RowKey: noteUid_Name
+    /// </summary>
+    public class LegacyDataEntity : DataEntity
+    {
+        public override string NoteId => RowKey.Split('_')[0];
+        public override string Name => RowKey.Split('_')[1];
     }
 
     /// <summary>

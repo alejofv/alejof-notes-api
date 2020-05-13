@@ -55,7 +55,7 @@ namespace Alejof.Notes.Handlers
 
             public async Task<Response> Handle(Request request, CancellationToken cancellationToken)
             {
-                var guid = Guid.NewGuid().ToString();
+                var guid = Guid.NewGuid().ToString("N");
 
                 var filename = GetNoteFilename(request.TenantId, guid, request.Format);
                 var uri = await _container.UploadAsync(request.Content, filename);

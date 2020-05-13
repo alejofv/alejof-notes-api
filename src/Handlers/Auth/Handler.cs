@@ -85,7 +85,6 @@ namespace Alejof.Notes.Handlers.Auth
         private async Task<Auth0TokenValidator?> BuildTokenValidator(string tenantId)
         {
             // find tenantId mapping in Storage
-            await _tenantMappingTable.CreateIfNotExistsAsync();
             var tenant = await _tenantMappingTable.RetrieveAsync<TenantEntity>(TenantEntity.DefaultKey, tenantId);
 
             if (!string.IsNullOrWhiteSpace(tenant?.Domain))
