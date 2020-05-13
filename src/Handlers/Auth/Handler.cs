@@ -6,6 +6,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Alejof.Notes.Settings;
 using Alejof.Notes.Storage;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -34,12 +35,14 @@ namespace Alejof.Notes.Handlers.Auth
         private const string TenantIdHeaderName = "Notes-Tenant-Id";
 
         protected readonly CloudTable _tenantMappingTable;
-
+        private readonly EnvironmentSettings _environment;
 
         public Handler(
-            CloudTableClient tableClient)
+            CloudTableClient tableClient,
+            EnvironmentSettings environment)
         {
-            this._tenantMappingTable = tableClient.GetTableReference(TenantEntity.TableName);
+            _tenantMappingTable = tableClient.GetTableReference(TenantEntity.TableName);
+            _environment = environment;
         }
 
         // https://liftcodeplay.com/2017/11/25/validating-auth0-jwt-tokens-in-azure-functions-aka-how-to-use-auth0-with-azure-functions/
@@ -49,6 +52,9 @@ namespace Alejof.Notes.Handlers.Auth
             string? tenantId = request.HttpRequest.Headers[TenantIdHeaderName];
             if (string.IsNullOrEmpty(tenantId))
                 return (null, "TenantId header not present");
+
+            if (_environment.IsDevelopment)
+                return (BuildDevelopmentIdentity(tenantId), null);
 
             string? token = request.HttpRequest.Headers["Authorization"];
             if (token?.StartsWith("Bearer") != true)
@@ -79,7 +85,6 @@ namespace Alejof.Notes.Handlers.Auth
         private async Task<Auth0TokenValidator?> BuildTokenValidator(string tenantId)
         {
             // find tenantId mapping in Storage
-            await _tenantMappingTable.CreateIfNotExistsAsync();
             var tenant = await _tenantMappingTable.RetrieveAsync<TenantEntity>(TenantEntity.DefaultKey, tenantId);
 
             if (!string.IsNullOrWhiteSpace(tenant?.Domain))
@@ -103,6 +108,14 @@ namespace Alejof.Notes.Handlers.Auth
                 Email = findClaim(principal, "email"),
             };
         }
+
+        private Identity BuildDevelopmentIdentity(string tenantId)
+            => new Identity {
+                TenantId = tenantId,
+                Nickname = "local",
+                FullName = "local",
+                Email = "local@local.com",
+            };
     }
 
     ///

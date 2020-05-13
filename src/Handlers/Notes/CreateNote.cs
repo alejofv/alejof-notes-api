@@ -42,28 +42,25 @@ namespace Alejof.Notes.Handlers
             private readonly CloudTable _noteTable;
             private readonly CloudTable _dataTable;
             private readonly CloudBlobContainer _container;
-            private readonly IMapper _mapper;
 
             public Handler(
                 CloudTableClient tableClient,
-                CloudBlobClient blobClient,
-                IMapper mapper)
+                CloudBlobClient blobClient)
             {
                 this._noteTable = tableClient.GetTableReference(NoteEntity.TableName);
                 this._dataTable = tableClient.GetTableReference(DataEntity.TableName);
 
                 this._container = blobClient.GetContainerReference(Blobs.ContentContainerName);
-                this._mapper = mapper;
             }
 
             public async Task<Response> Handle(Request request, CancellationToken cancellationToken)
             {
-                var noteDate = DateTime.UtcNow;
+                var guid = Guid.NewGuid().ToString("N");
 
-                var filename = GetNoteFilename(request.TenantId, noteDate, request.Slug, request.Format);
+                var filename = GetNoteFilename(request.TenantId, guid, request.Format);
                 var uri = await _container.UploadAsync(request.Content, filename);
 
-                var note = await SaveNote(request, noteDate, uri);
+                var note = await SaveNote(request, guid, uri);
                 if (note == null)
                     return new Response { Message = "CreateNote failed" };
 
@@ -72,14 +69,16 @@ namespace Alejof.Notes.Handlers
                 return new Response { Success = true, NoteId = note.RowKey  };
             }
 
-            private async Task<NoteEntity?> SaveNote(Request request, DateTime noteDate, string contentUri)
+            private async Task<NoteEntity?> SaveNote(Request request, string guid, string contentUri)
             {
-                var entity = NoteEntity
-                    .New(request.TenantId, false, noteDate);
-
-                entity.Title = request.Title;
-                entity.Slug = request.Slug;
-                entity.BlobUri = contentUri;
+                var entity = new NoteEntity
+                {
+                    PartitionKey = request.TenantId,
+                    RowKey = guid,
+                    Title = request.Title,
+                    Slug = request.Slug,
+                    BlobUri = contentUri,
+                };
 
                 var result = await _noteTable.InsertAsync(entity);
                 if (result)
@@ -96,7 +95,7 @@ namespace Alejof.Notes.Handlers
                         entry => new DataEntity
                         {
                             PartitionKey = note.PartitionKey,
-                            RowKey = $"{note.Uid}_{entry.Key}",
+                            RowKey = $"{note.RowKey}-{entry.Key}",
                             Value = entry.Value,
                         })
                     .ToList();
@@ -110,7 +109,7 @@ namespace Alejof.Notes.Handlers
                 }
             }
 
-            private string GetNoteFilename(string tenantId, DateTime date, string slug, string format) => $"{tenantId}/{date.ToString("yyyy-MM-dd")}-{slug}.{format}";
+            private string GetNoteFilename(string tenantId, string guid, string format) => $"{tenantId}/{guid}.{format}";
         }
     }
 }

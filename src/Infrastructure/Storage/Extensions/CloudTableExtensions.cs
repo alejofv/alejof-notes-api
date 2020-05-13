@@ -12,6 +12,8 @@ namespace Alejof.Notes.Storage
         public static async Task<TEntity?> RetrieveAsync<TEntity>(this CloudTable table, string partitionKey, string rowKey)
             where TEntity : TableEntity, new()
         {
+            await table.CreateIfNotExistsAsync();
+
             var retrieveOperation = TableOperation.Retrieve<TEntity>(partitionKey, rowKey);
             var result = await table.ExecuteAsync(retrieveOperation);
 
@@ -21,6 +23,8 @@ namespace Alejof.Notes.Storage
         public static async Task<List<TEntity>> ScanAsync<TEntity>(this CloudTable table, string partitionKey)
             where TEntity : TableEntity, new()
         {
+            await table.CreateIfNotExistsAsync();
+
             var query = new TableQuery<TEntity>()
                 .Where($"PartitionKey eq '{partitionKey}'");
                 
@@ -31,6 +35,8 @@ namespace Alejof.Notes.Storage
         public static async Task<List<TEntity>> QueryAsync<TEntity>(this CloudTable table, string partitionKey, string? filter)
             where TEntity : TableEntity, new()
         {
+            await table.CreateIfNotExistsAsync();
+
             if (string.IsNullOrWhiteSpace(filter))
                 return await table.ScanAsync<TEntity>(partitionKey);
 
@@ -43,6 +49,8 @@ namespace Alejof.Notes.Storage
 
         public static async Task<bool> InsertAsync(this CloudTable table, ITableEntity entity)
         {
+            await table.CreateIfNotExistsAsync();
+
             var operation = TableOperation.Insert(entity);
             var result = await table.ExecuteAsync(operation);
 
@@ -51,6 +59,8 @@ namespace Alejof.Notes.Storage
 
         public static async Task<bool> ReplaceAsync(this CloudTable table, ITableEntity entity, bool insertIfNotFound = false)
         {
+            await table.CreateIfNotExistsAsync();
+
             var operation = insertIfNotFound ?
                 TableOperation.InsertOrReplace(entity)
                 : TableOperation.Replace(entity);
@@ -62,6 +72,8 @@ namespace Alejof.Notes.Storage
 
         public static async Task<bool> DeleteAsync(this CloudTable table, ITableEntity entity)
         {
+            await table.CreateIfNotExistsAsync();
+            
             var operation = TableOperation.Delete(entity);
             var result = await table.ExecuteAsync(operation);
 

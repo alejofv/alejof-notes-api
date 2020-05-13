@@ -64,7 +64,7 @@ namespace Alejof.Notes
                 return new UnauthorizedResult();
 
             var result = await _mediator.Send(
-                new Handlers.GetNote.Request
+                new Handlers.GetNote.AllNotesRequest
                 {
                     TenantId = identity.TenantId,
                     Published = req.GetPublishedQueryParam()
@@ -82,10 +82,9 @@ namespace Alejof.Notes
                 return new UnauthorizedResult();
 
             var result = await _mediator.Send(
-                new Handlers.GetNote.Request
+                new Handlers.GetNote.SingleNoteRequest
                 {
                     TenantId = identity.TenantId,
-                    Published = req.GetPublishedQueryParam(),
                     NoteId = id,
                 });
 
@@ -119,8 +118,7 @@ namespace Alejof.Notes
 
         [FunctionName("NotesEdit")]
         public async Task<IActionResult> EditNoteFunction(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "notes/{id}")] HttpRequest req, ILogger log, string id,
-            [Queue("netlify-deploy-signal")]IAsyncCollector<string> deploySignalCollector)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "notes/{id}")] HttpRequest req, ILogger log, string id)
         {
             var identity = await this.Authenticate(req, log);
             if (identity == null)
@@ -132,16 +130,12 @@ namespace Alejof.Notes
 
             request.TenantId = identity.TenantId;
             request.NoteId = id;
-            request.Published = req.GetPublishedQueryParam();
             request.Format = req.GetFormatQueryParam();
             
             var result = await this.ProcessActionRequest(identity, request);
 
             if (!result.Success)
                 return new ConflictObjectResult(result);
-
-            if (request.Published)
-                await deploySignalCollector.AddAsync(identity.TenantId);
                 
             return new OkObjectResult(result);
         }
@@ -187,7 +181,7 @@ namespace Alejof.Notes
         [FunctionName("MediaUpload")]
         public async Task<IActionResult> UploadMediaFunction(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "media")] HttpRequest req, ILogger log, IBinder binder,
-            [Queue("media-thumbnail-signal")]IAsyncCollector<string> thumbnailSignalCollector)
+            [Queue("media-thumbnail-signal", Connection = "StorageConnectionString")]IAsyncCollector<string> thumbnailSignalCollector)
         {
             var identity = await this.Authenticate(req, log);
             if (identity == null)
@@ -236,7 +230,7 @@ namespace Alejof.Notes
         [FunctionName("Publish")]
         public async Task<IActionResult> PublishNoteFunction(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", "delete", Route = "publish/{id}")] HttpRequest req, ILogger log, string id,
-            [Queue("netlify-deploy-signal")]IAsyncCollector<string> deploySignalCollector)
+            [Queue("netlify-deploy-signal", Connection = "StorageConnectionString")]IAsyncCollector<string> deploySignalCollector)
         {
             var identity = await this.Authenticate(req, log);
             if (identity == null)
@@ -255,27 +249,6 @@ namespace Alejof.Notes
 
             await deploySignalCollector.AddAsync(identity.TenantId);
             return new OkObjectResult(result);
-        }
-    }
-
-    public class ContentFunctions
-    {
-        private readonly IMediator _mediator;
-
-        public ContentFunctions(
-            IMediator mediator)
-        {
-            this._mediator = mediator;
-        }
-
-        [FunctionName("ContentGet")]
-        public async Task<IActionResult> GetContentFunction(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "content/{tenantId}")] HttpRequest req, ILogger log, string tenantId)
-        {
-            var response = await _mediator.Send(
-                new Handlers.GetContent.Request { TenantId = tenantId });
-
-            return new OkObjectResult(response.Data);
         }
     }
 }

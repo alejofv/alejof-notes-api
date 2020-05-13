@@ -17,8 +17,6 @@ namespace Alejof.Notes.Handlers
         public class Request : BaseRequest, IRequest<ActionResponse>, IAuditableRequest
         {
             public string NoteId { get; set; } = string.Empty;
-            public bool Published { get; set; }
-
             public string Title { get; set; } = string.Empty;
             public string Slug { get; set; } = string.Empty;
             public string Format { get; set; } = string.Empty;
@@ -28,7 +26,6 @@ namespace Alejof.Notes.Handlers
             public object AuditRecord => new
             {
                 this.NoteId,
-                this.Published,
                 this.Title,
                 this.Slug,
                 this.Format,
@@ -54,12 +51,11 @@ namespace Alejof.Notes.Handlers
 
             public async Task<ActionResponse> Handle(Request request, CancellationToken cancellationToken)
             {
-                var (note, oldData) = await GetNote(request.TenantId, request.NoteId, request.Published);
+                var (note, oldData) = await GetNote(request.TenantId, request.NoteId);
                 if (note == null)
                     return new ActionResponse { Success = false, Message = "Note not found" };
 
-                var oldContentUri = note.BlobUri;
-                var filename = GetNoteFilename(request.TenantId, note.Date, request.Slug, request.Format);
+                var filename = GetNoteFilename(request.TenantId, request.NoteId, request.Format);
                 var uri = await _container.UploadAsync(request.Content, filename);
                 
                 var result = await SaveNote(request, note, uri);
@@ -68,21 +64,16 @@ namespace Alejof.Notes.Handlers
 
                 // Update data
                 await SaveData(note, request.Data, oldData);
-            
-                if (!string.IsNullOrWhiteSpace(oldContentUri) && !string.Equals(uri, oldContentUri, StringComparison.OrdinalIgnoreCase))
-                    await _container.DeleteAsync(oldContentUri);
-
                 return ActionResponse.Ok;
             }
 
-            private async Task<(NoteEntity?, List<DataEntity>)> GetNote(string tenantId, string id, bool published)
+            private async Task<(NoteEntity?, List<DataEntity>)> GetNote(string tenantId, string id)
             {
-                var note = await _noteTable.RetrieveAsync<NoteEntity>(NoteEntity.GetKey(tenantId, published), id);
-                var data = note != null ? 
-                    await _dataTable.QueryAsync<DataEntity>(note.PartitionKey, FilterBy.RowKey.Like(note.Uid))
-                    : Enumerable.Empty<DataEntity>().ToList();
+                var noteTask = _noteTable.RetrieveAsync<NoteEntity>(tenantId, id);
+                var dataTask = _dataTable.QueryAsync<DataEntity>(tenantId, FilterBy.RowKey.Like(id));
 
-                return (note, data);
+                await Task.WhenAll(noteTask, dataTask);
+                return (noteTask.Result, dataTask.Result);
             }
 
             private async Task<bool> SaveNote(Request request, NoteEntity entity, string contentUri)
@@ -90,10 +81,6 @@ namespace Alejof.Notes.Handlers
                 entity.Title = request.Title;
                 entity.Slug = request.Slug;
                 entity.BlobUri = contentUri;
-
-                // Fix legacy notes
-                if (string.IsNullOrEmpty(entity.Uid))
-                    entity.Uid = Guid.NewGuid().ToString();
 
                 return await _noteTable.ReplaceAsync(entity);
             }
@@ -106,7 +93,7 @@ namespace Alejof.Notes.Handlers
                         entry => new DataEntity
                         {
                             PartitionKey = note.PartitionKey,
-                            RowKey = $"{note.Uid}_{entry.Key}",
+                            RowKey = $"{note.RowKey}_{entry.Key}",
                             Value = entry.Value,
                         })
                     .ToList();
@@ -126,7 +113,7 @@ namespace Alejof.Notes.Handlers
                 }
             }
 
-            private string GetNoteFilename(string tenantId, DateTime date, string slug, string format) => $"{tenantId}/{date.ToString("yyyy-MM-dd")}-{slug}.{format}";
+            private string GetNoteFilename(string tenantId, string guid, string format) => $"{tenantId}/{guid}.{format}";
         }
     }
 }

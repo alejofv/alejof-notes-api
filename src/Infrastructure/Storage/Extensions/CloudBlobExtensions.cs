@@ -17,6 +17,8 @@ namespace Alejof.Notes.Storage
 
         public static async Task<string> UploadAsync(this CloudBlobContainer container, Stream data, string filename)
         {
+            await container.CreateIfNotExistsAsync();
+
             var blob = container.GetBlockBlobReference(filename.ToLowerInvariant());
             await blob.UploadFromStreamAsync(data);
 
@@ -25,6 +27,8 @@ namespace Alejof.Notes.Storage
         
         public static async Task<string> DownloadAsync(this CloudBlobContainer container, string uri)
         {
+            await container.CreateIfNotExistsAsync();
+
             var blob = await container.ServiceClient.GetBlobReferenceFromServerAsync(new Uri(uri));
 
             using (var sm = new MemoryStream())
@@ -36,6 +40,8 @@ namespace Alejof.Notes.Storage
         
         public static async Task DeleteAsync(this CloudBlobContainer container, string uri)
         {
+            await container.CreateIfNotExistsAsync();
+            
             var blob = await container.ServiceClient.GetBlobReferenceFromServerAsync(new Uri(uri));
             await blob.DeleteIfExistsAsync();
         }
