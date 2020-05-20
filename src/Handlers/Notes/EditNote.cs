@@ -93,7 +93,7 @@ namespace Alejof.Notes.Handlers
                         entry => new DataEntity
                         {
                             PartitionKey = note.PartitionKey,
-                            RowKey = $"{note.RowKey}_{entry.Key}",
+                            RowKey = $"{note.RowKey}-{entry.Key}",
                             Value = entry.Value,
                         })
                     .ToList();
