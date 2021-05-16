@@ -12,8 +12,8 @@ namespace Alejof.Notes.Extensions
         public static bool GetPublishedQueryParam(this HttpRequest req) =>
             req.GetQueryParameterDictionary().TryGetValue("published", out var value) && bool.TryParse(value, out var boolValue) ? boolValue : false;
 
-        public static string GetFormatQueryParam(this HttpRequest req) =>
-            req.GetQueryParameterDictionary().TryGetValue("format", out var formatValue) ? formatValue : "md";
+        public static string? GetQueryParam(this HttpRequest req, string paramName) =>
+            req.GetQueryParameterDictionary().TryGetValue("format", out var formatValue) ? formatValue : null;
 
         public static async Task<T> GetJsonBodyAs<T>(this HttpRequest req)
         {

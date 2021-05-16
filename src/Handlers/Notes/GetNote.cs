@@ -56,11 +56,11 @@ namespace Alejof.Notes.Handlers
                 CloudBlobClient blobClient,
                 IMapper mapper)
             {
-                this._noteTable = tableClient.GetTableReference(NoteEntity.TableName);
-                this._dataTable = tableClient.GetTableReference(DataEntity.TableName);
+                _noteTable = tableClient.GetTableReference(NoteEntity.TableName);
+                _dataTable = tableClient.GetTableReference(DataEntity.TableName);
 
-                this._container = blobClient.GetContainerReference(Blobs.ContentContainerName);
-                this._mapper = mapper;
+                _container = blobClient.GetContainerReference(Blobs.ContentContainerName);
+                _mapper = mapper;
             }
 
             public async Task<Response> Handle(AllNotesRequest request, CancellationToken cancellationToken)
@@ -71,7 +71,7 @@ namespace Alejof.Notes.Handlers
                 result.AddRange(
                     notes
                         .Where(note => note.IsPublished == request.Published)
-                        .Select(entity => mapToModel(entity, data.Where(d => d.NoteId == entity.RowKey))));
+                        .Select(entity => MapToModel(entity, data.Where(d => d.NoteId == entity.RowKey))));
                 
                 return new Response(result);
             }
@@ -83,7 +83,7 @@ namespace Alejof.Notes.Handlers
                 var (note, data, content) = await GetNote(request.TenantId, request.NoteId);
                 if (note != null)
                 {
-                    var model = mapToModel(note, data);
+                    var model = MapToModel(note, data);
                     model.Content = content;
 
                     result.Add(model);
@@ -94,30 +94,32 @@ namespace Alejof.Notes.Handlers
 
             private async Task<(IList<NoteEntity>, IList<DataEntity>)> GetNotes(string tenantId)
             {
-                var notesTask = _noteTable.ScanAsync<NoteEntity>(tenantId);
-                var dataTask = _dataTable.ScanAsync<DataEntity>(tenantId);
-
-                await Task.WhenAll(notesTask, dataTask);
-                return (notesTask.Result, dataTask.Result);
+                var tasks = (
+                    _noteTable.ScanAsync<NoteEntity>(tenantId),
+                    _dataTable.ScanAsync<DataEntity>(tenantId));
+                    
+                await Task.WhenAll(tasks.Item1, tasks.Item2);
+                return (tasks.Item1.Result, tasks.Item2.Result);
             }
 
             private async Task<(NoteEntity?, IList<DataEntity>, string)> GetNote(string tenantId, string id)
             {
-                var noteTask = _noteTable.RetrieveAsync<NoteEntity>(tenantId, id);
-                var dataTask = _dataTable.QueryAsync<DataEntity>(tenantId, FilterBy.RowKey.Like(id));
+                var tasks = (
+                    _noteTable.RetrieveAsync<NoteEntity>(tenantId, id),
+                    _dataTable.QueryAsync<DataEntity>(tenantId, FilterBy.RowKey.Like(id)));
 
-                await Task.WhenAll(noteTask, dataTask);
-                var note = noteTask.Result;
+                await Task.WhenAll(tasks.Item1, tasks.Item2);
+                var (note, data) = (tasks.Item1.Result, tasks.Item2.Result);
 
                 // Get content from blob
                 var content = string.Empty;
                 if (!string.IsNullOrEmpty(note?.BlobUri))
                     content = await _container.DownloadAsync(note.BlobUri);
 
-                return (note, dataTask.Result, content);
+                return (note, data, content);
             }
 
-            private NoteModel mapToModel(NoteEntity entity, IEnumerable<DataEntity> data)
+            private NoteModel MapToModel(NoteEntity entity, IEnumerable<DataEntity> data)
             {
                 var model = _mapper.Map<NoteModel>(entity);
 

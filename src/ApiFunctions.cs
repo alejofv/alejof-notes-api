@@ -107,7 +107,7 @@ namespace Alejof.Notes
                 return new BadRequestResult();
 
             request.TenantId = identity.TenantId;
-            request.Format = req.GetFormatQueryParam();
+            request.Format = req.GetQueryParam("format") ?? "md";
             
             var result = await this.ProcessActionRequest<Handlers.CreateNote.Request, Handlers.CreateNote.Response>(identity, request);
             if (!result.Success)
@@ -130,7 +130,7 @@ namespace Alejof.Notes
 
             request.TenantId = identity.TenantId;
             request.NoteId = id;
-            request.Format = req.GetFormatQueryParam();
+            request.Format = req.GetQueryParam("format") ?? "md";
             
             var result = await this.ProcessActionRequest(identity, request);
 
