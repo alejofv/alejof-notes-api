@@ -9,7 +9,7 @@ using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Alejof.Notes.Handlers.Auth
+namespace Alejof.Notes.Auth
 {
     public class Auth0TokenValidator
     {

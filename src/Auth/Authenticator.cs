@@ -12,7 +12,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.WindowsAzure.Storage.Table;
 
-namespace Alejof.Notes.Handlers.Auth
+namespace Alejof.Notes.Auth
 {
     public class Identity
     {        
@@ -22,14 +22,7 @@ namespace Alejof.Notes.Handlers.Auth
         public string Email { get; set; } = string.Empty;
     }
 
-    public class Request : IRequest<(Identity?, string?)>
-    {
-        public HttpRequest HttpRequest { get; private set; }
-
-        public Request(HttpRequest request) { this.HttpRequest = request; }
-    }
-
-    public class Handler : IRequestHandler<Request, (Identity?, string?)>
+    public class Authenticator
     {
         private static readonly Dictionary<string, Auth0TokenValidator> TenantAuthenticators = new Dictionary<string, Auth0TokenValidator>();
         private const string TenantIdHeaderName = "Notes-Tenant-Id";
@@ -37,7 +30,7 @@ namespace Alejof.Notes.Handlers.Auth
         protected readonly CloudTable _tenantMappingTable;
         private readonly EnvironmentSettings _environment;
 
-        public Handler(
+        public Authenticator(
             CloudTableClient tableClient,
             EnvironmentSettings environment)
         {
@@ -46,17 +39,17 @@ namespace Alejof.Notes.Handlers.Auth
         }
 
         // https://liftcodeplay.com/2017/11/25/validating-auth0-jwt-tokens-in-azure-functions-aka-how-to-use-auth0-with-azure-functions/
-        public async Task<(Identity?, string?)> Handle(Request request, CancellationToken cancellationToken)
+        public async Task<(Identity?, string?)> Authenticate(HttpRequest request)
         {
             // Get TenantId and Bearer token
-            string? tenantId = request.HttpRequest.Headers[TenantIdHeaderName];
+            string? tenantId = request.Headers[TenantIdHeaderName];
             if (string.IsNullOrEmpty(tenantId))
                 return (null, "TenantId header not present");
 
             if (_environment.IsDevelopment)
                 return (BuildDevelopmentIdentity(tenantId), null);
 
-            string? token = request.HttpRequest.Headers["Authorization"];
+            string? token = request.Headers["Authorization"];
             if (token?.StartsWith("Bearer") != true)
                 return (null, "Authorization header not present or not using valid scheme");
 

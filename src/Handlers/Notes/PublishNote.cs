@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -23,6 +24,7 @@ namespace Alejof.Notes.Handlers
             public string NoteId { get; set; } = string.Empty;
             public DateTime? Date { get; set; }
             public bool Publish { get; set; }
+            public ContentFormat Format { get; set; }
 
             public object AuditRecord => new
             {
@@ -50,7 +52,7 @@ namespace Alejof.Notes.Handlers
 
             public async Task<ActionResponse> Handle(Request request, CancellationToken cancellationToken)
             {
-                var (note, data, content) = await GetNote(request.TenantId, request.NoteId);
+                var (note, data) = await GetNote(request.TenantId, request.NoteId);
                 if (note == null)
                     return new ActionResponse { Success = false, Message = "Note not found" };
 
@@ -59,12 +61,9 @@ namespace Alejof.Notes.Handlers
                     if (string.IsNullOrWhiteSpace(note.Slug))
                         return new ActionResponse { Success = false, Message = "Note slug not valid" };
 
-                    var noteDate = request.Date ?? DateTime.UtcNow;
-                    var format = System.IO.Path.GetExtension(note.BlobUri) ?? ".md";
-
                     // Create published blob
-                    var filename = GetNoteFilename(request.TenantId, noteDate, note.Slug, format.Replace(".", ""));
-                    content = ProcessContent(note, data, content);
+                    var content = await GetContent(note, data, request.Format);
+                    var filename = GetNoteFilename(request, note);
 
                     note.PublishedBlobUri = await _container.UploadAsync(content, filename);
                 }
@@ -84,7 +83,7 @@ namespace Alejof.Notes.Handlers
                 return ActionResponse.Ok;
             }
 
-            private async Task<(NoteEntity?, IList<DataEntity>, string)> GetNote(string tenantId, string id)
+            private async Task<(NoteEntity?, IList<DataEntity>)> GetNote(string tenantId, string id)
             {
                 var noteTask = _noteTable.RetrieveAsync<NoteEntity>(tenantId, id);
                 var dataTask = _dataTable.QueryAsync<DataEntity>(tenantId, FilterBy.RowKey.Like(id));
@@ -92,12 +91,7 @@ namespace Alejof.Notes.Handlers
                 await Task.WhenAll(noteTask, dataTask);
                 var note = noteTask.Result;
 
-                // Get content from blob
-                var content = string.Empty;
-                if (!string.IsNullOrEmpty(note?.BlobUri))
-                    content = await _container.DownloadAsync(note.BlobUri);
-
-                return (note, dataTask.Result, content);
+                return (note, dataTask.Result);
             }
 
             private async Task<bool> SaveNote(NoteEntity entity, bool published)
@@ -108,18 +102,36 @@ namespace Alejof.Notes.Handlers
 
             // Add data as Front matter
             // TODO: use configurable data by tenant
-            private string ProcessContent(NoteEntity note, IList<DataEntity> data, string content)
-                => new StringBuilder()
-                    .AppendLine("---")
-                    .AppendLine($"layout: note_entry")
-                    .AppendLine($"title: \"{note.Title}\"")
-                    .AppendItems(data, d => $"{d.Name.Camelize()}: \"{d.Value}\"")
-                    .AppendLine("---")
-                    .AppendLine(content)
-                    .ToString();
+            private async Task<string> GetContent(NoteEntity note, IList<DataEntity> data, ContentFormat format)
+            {
+                // Get content from blob
+                var content = string.Empty;
+                if (!string.IsNullOrEmpty(note.BlobUri))
+                    content = await _container.DownloadAsync(note.BlobUri);
 
-            private string GetNoteFilename(string tenantId, DateTime date, string slug, string format)
-                => $"{tenantId}/{date.ToString("yyyy-MM-dd")}-{slug}.{format}";
+                return format switch 
+                {
+                    ContentFormat.File => new StringBuilder()
+                        .AppendLine("---")
+                        .AppendLine($"layout: note_entry")
+                        .AppendLine($"title: \"{note.Title}\"")
+                        .AppendItems(data, d => $"{d.Name.Camelize()}: \"{d.Value}\"")
+                        .AppendLine("---")
+                        .AppendLine(content)
+                        .ToString(),
+                        
+                    _ => content,
+                };
+            }
+
+            private string GetNoteFilename(Request request, NoteEntity note)
+                => request.Format switch
+                {
+                    ContentFormat.File => $"{request.TenantId}/{(request.Date ?? DateTime.UtcNow).ToString("yyyy-MM-dd")}-{note.Slug}{Path.GetExtension(note.BlobUri)}",
+                    ContentFormat.Json => $"{request.TenantId}/{note.Slug}.json",
+
+                    _ => $"{request.TenantId}/{Path.GetFileName(note.BlobUri)}",
+                };
         }
     }
 }

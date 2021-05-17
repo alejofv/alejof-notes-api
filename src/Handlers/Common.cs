@@ -4,6 +4,13 @@ using MediatR;
 
 namespace Alejof.Notes.Handlers
 {
+    public enum ContentFormat
+    {
+        // Default: Jekyll post file with Front Matter
+        File,
+        Json,
+    }
+
     public abstract class BaseRequest
     {
         public string TenantId { get; set; } = string.Empty;

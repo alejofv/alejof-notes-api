@@ -125,7 +125,7 @@ namespace Alejof.Notes.Handlers
 
                 model.Data = data
                     .ToDictionary(
-                        keySelector: d => d.Name,
+                        keySelector: d => d.Name.Camelize(),
                         elementSelector: d => d.Value);
 
                 return model;

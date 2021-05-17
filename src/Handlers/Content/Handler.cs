@@ -7,21 +7,16 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Alejof.Notes.Storage;
+using Humanizer;
 using MediatR;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Alejof.Notes.Handlers.Content
 {
-    public enum ContentFormat
-    {
-        File,
-        Json,
-    }
-
     public class Request : BaseRequest, IRequest<Response>
     {
-        public ContentFormat Format { get; set; } = ContentFormat.File;
+        public ContentFormat Format { get; set; }
     }
 
     public class Response
@@ -57,8 +52,8 @@ namespace Alejof.Notes.Handlers.Content
             return new Response(
                 request.Format switch
                 {
-                    ContentFormat.File => ItemsAsJekyllFile(items),
-                    ContentFormat.Json => await ItemsAsJsonData(items, request.TenantId),
+                    ContentFormat.File => ItemsAsFileFormat(items),
+                    ContentFormat.Json => await ItemsAsJsonFormat(items, request.TenantId),
                     // Unrecognized format
                     _ => Enumerable.Empty<BaseContentModel>(),
                 });
@@ -85,7 +80,7 @@ namespace Alejof.Notes.Handlers.Content
                 });
         }
 
-        public IEnumerable<BaseContentModel> ItemsAsJekyllFile(IEnumerable<(Uri Url, string SASToken, string Path)> items)
+        public IEnumerable<BaseContentModel> ItemsAsFileFormat(IEnumerable<(Uri Url, string SASToken, string Path)> items)
             => items.Select(
                 i => new JekyllContentModel
                 {
@@ -93,7 +88,7 @@ namespace Alejof.Notes.Handlers.Content
                     Name = Path.GetFileName(i.Path),
                 });
 
-        public async Task<IEnumerable<BaseContentModel>> ItemsAsJsonData(IEnumerable<(Uri Url, string SASToken, string Path)> items, string tenantId)
+        public async Task<IEnumerable<BaseContentModel>> ItemsAsJsonFormat(IEnumerable<(Uri Url, string SASToken, string Path)> items, string tenantId)
         {
             var tasks = (
                 _noteTable.ScanAsync<NoteEntity>(tenantId),
@@ -117,7 +112,7 @@ namespace Alejof.Notes.Handlers.Content
                         Title = x.note.Title,
                         Data = x.dataItems
                             .ToDictionary(
-                                keySelector: d => d.Name.ToLower(),
+                                keySelector: d => d.Name.Camelize(),
                                 elementSelector: d => d.Value),
                     });
         }

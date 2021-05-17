@@ -15,9 +15,9 @@ namespace Alejof.Notes.Handlers
         {
             public Auth.Identity Identity { get; private set; }
             public IAuditableRequest Request { get; private set; }
-            public ActionResponse Result { get; private set; }
+            public ActionResponse? Result { get; private set; }
 
-            public Notification(Auth.Identity identity, IAuditableRequest request, ActionResponse result)
+            public Notification(Auth.Identity identity, IAuditableRequest request, ActionResponse? result)
             {
                 Identity = identity;
                 Request = request;
@@ -43,7 +43,8 @@ namespace Alejof.Notes.Handlers
                 
                 entity.Action = requestType.DeclaringType?.Name ?? requestType.FullName;
                 entity.Request = JsonConvert.SerializeObject(notification.Request.AuditRecord);
-                entity.Response = notification.Result.Success ? "OK" : notification.Result.Message;
+                if (notification.Result != null)
+                    entity.Response = notification.Result.Success == true ? "OK" : notification.Result.Message;
 
                 await _logTable.InsertAsync(entity);
             }
