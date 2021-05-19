@@ -127,9 +127,9 @@ namespace Alejof.Notes.Handlers
             private string GetNoteFilename(Request request, NoteEntity note)
                 => request.Format switch
                 {
-                    PublishFormat.FrontMatter => $"{request.TenantId}/{(request.Date ?? DateTime.UtcNow).ToString("yyyy-MM-dd")}-{note.Slug}{Path.GetExtension(note.BlobUri)}",
+                    PublishFormat.FrontMatter => $"{request.TenantId}/{(request.Date ?? DateTime.UtcNow).ToString("yyyy-MM-dd")}-{note.Slug?.Trim()}{Path.GetExtension(note.BlobUri)}",
 
-                    _ => $"{request.TenantId}/{Path.GetFileName(note.BlobUri)}",
+                    _ => $"{request.TenantId}/{note.Slug?.Trim()}{Path.GetExtension(note.BlobUri)}",
                 };
         }
     }

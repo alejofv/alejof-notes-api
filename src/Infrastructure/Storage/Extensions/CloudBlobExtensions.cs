@@ -12,15 +12,12 @@ namespace Alejof.Notes.Storage
 {
     public static class CloudBlobExtensions
     {
-        public static Task<string> UploadAsync(this CloudBlobContainer container, string content, string filename) => 
-            UploadAsync(container, new MemoryStream(Encoding.UTF8.GetBytes(content)), filename);
-
-        public static async Task<string> UploadAsync(this CloudBlobContainer container, Stream data, string filename)
+        public static async Task<string> UploadAsync(this CloudBlobContainer container, string content, string filename)
         {
             await container.CreateIfNotExistsAsync();
 
             var blob = container.GetBlockBlobReference(filename.ToLowerInvariant());
-            await blob.UploadFromStreamAsync(data);
+            await blob.UploadTextAsync(content);
 
             return blob.Uri.ToString();
         }
