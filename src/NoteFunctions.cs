@@ -156,7 +156,7 @@ namespace Alejof.Notes
             if (identity == null)
                 return new UnauthorizedResult();
 
-            Enum.TryParse<Handlers.ContentFormat>(req.GetQueryParam("format"), ignoreCase: true, out var format);
+            Enum.TryParse<Handlers.PublishFormat>(req.GetQueryParam("format"), ignoreCase: true, out var format);
 
             var result = await _mediator.Send(
                 new Handlers.PublishNote.Request

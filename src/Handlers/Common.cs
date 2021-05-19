@@ -4,6 +4,12 @@ using MediatR;
 
 namespace Alejof.Notes.Handlers
 {
+    public enum PublishFormat
+    {
+        FrontMatter,
+        Plain,
+    }
+
     public enum ContentFormat
     {
         // Default: Jekyll post file with Front Matter

@@ -24,7 +24,7 @@ namespace Alejof.Notes.Handlers
             public string NoteId { get; set; } = string.Empty;
             public DateTime? Date { get; set; }
             public bool Publish { get; set; }
-            public ContentFormat Format { get; set; }
+            public PublishFormat Format { get; set; }
 
             public object AuditRecord => new
             {
@@ -102,7 +102,7 @@ namespace Alejof.Notes.Handlers
 
             // Add data as Front matter
             // TODO: use configurable data by tenant
-            private async Task<string> GetContent(NoteEntity note, IList<DataEntity> data, ContentFormat format)
+            private async Task<string> GetContent(NoteEntity note, IList<DataEntity> data, PublishFormat format)
             {
                 // Get content from blob
                 var content = string.Empty;
@@ -111,7 +111,7 @@ namespace Alejof.Notes.Handlers
 
                 return format switch 
                 {
-                    ContentFormat.File => new StringBuilder()
+                    PublishFormat.FrontMatter => new StringBuilder()
                         .AppendLine("---")
                         .AppendLine($"layout: note_entry")
                         .AppendLine($"title: \"{note.Title}\"")
@@ -127,8 +127,7 @@ namespace Alejof.Notes.Handlers
             private string GetNoteFilename(Request request, NoteEntity note)
                 => request.Format switch
                 {
-                    ContentFormat.File => $"{request.TenantId}/{(request.Date ?? DateTime.UtcNow).ToString("yyyy-MM-dd")}-{note.Slug}{Path.GetExtension(note.BlobUri)}",
-                    ContentFormat.Json => $"{request.TenantId}/{note.Slug}.json",
+                    PublishFormat.FrontMatter => $"{request.TenantId}/{(request.Date ?? DateTime.UtcNow).ToString("yyyy-MM-dd")}-{note.Slug}{Path.GetExtension(note.BlobUri)}",
 
                     _ => $"{request.TenantId}/{Path.GetFileName(note.BlobUri)}",
                 };
