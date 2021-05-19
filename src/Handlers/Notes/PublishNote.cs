@@ -62,6 +62,8 @@ namespace Alejof.Notes.Handlers
                         return new ActionResponse { Success = false, Message = "Note slug not valid" };
 
                     // Create published blob
+                    note.PublishedDate = (request.Date ?? DateTime.UtcNow).ToString("yyyy-MM-dd");
+
                     var content = await GetContent(note, data, request.Format);
                     var filename = GetNoteFilename(request, note);
 
@@ -101,7 +103,6 @@ namespace Alejof.Notes.Handlers
             }
 
             // Add data as Front matter
-            // TODO: use configurable data by tenant
             private async Task<string> GetContent(NoteEntity note, IList<DataEntity> data, PublishFormat format)
             {
                 // Get content from blob
@@ -125,12 +126,7 @@ namespace Alejof.Notes.Handlers
             }
 
             private string GetNoteFilename(Request request, NoteEntity note)
-                => request.Format switch
-                {
-                    PublishFormat.FrontMatter => $"{request.TenantId}/{(request.Date ?? DateTime.UtcNow).ToString("yyyy-MM-dd")}-{note.Slug?.Trim()}{Path.GetExtension(note.BlobUri)}",
-
-                    _ => $"{request.TenantId}/{note.Slug?.Trim()}{Path.GetExtension(note.BlobUri)}",
-                };
+                => $"{request.TenantId}/{note.Slug?.Trim()}{Path.GetExtension(note.BlobUri)}";
         }
     }
 }

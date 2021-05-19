@@ -6,15 +6,8 @@ namespace Alejof.Notes.Handlers
 {
     public enum PublishFormat
     {
-        FrontMatter,
         Plain,
-    }
-
-    public enum ContentFormat
-    {
-        // Default: Jekyll post file with Front Matter
-        File,
-        Json,
+        FrontMatter,
     }
 
     public abstract class BaseRequest

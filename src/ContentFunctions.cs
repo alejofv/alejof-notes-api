@@ -31,9 +31,7 @@ namespace Alejof.Notes
         {
             log.LogInformation($"Fetching content for {tenantId}.");
 
-            Enum.TryParse<Handlers.ContentFormat>(req.GetQueryParam("format"), ignoreCase: true, out var format);
-
-            var result = await _mediator.Send(new Handlers.Content.Request { TenantId = tenantId, Format = format });
+            var result = await _mediator.Send(new Handlers.Content.Request { TenantId = tenantId });
             return new OkObjectResult(result.ContentList);
         }
 

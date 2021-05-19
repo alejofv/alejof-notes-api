@@ -16,16 +16,20 @@ namespace Alejof.Notes.Handlers.Content
 {
     public class Request : BaseRequest, IRequest<Response>
     {
-        public ContentFormat Format { get; set; }
+        
     }
 
     public class Response
     {
-        public IReadOnlyCollection<BaseContentModel> ContentList { get; private set; }
+        public IReadOnlyCollection<ContentModel> ContentList { get; private set; }
 
-        public Response(IEnumerable<BaseContentModel> contentEnumerable)
+        public Response(IEnumerable<ContentModel?> contentEnumerable)
         {
-            this.ContentList = contentEnumerable.ToList().AsReadOnly();
+            this.ContentList = contentEnumerable
+                .Where(x => x != null)
+                .Select(x => x!)
+                .ToList()
+                .AsReadOnly();
         }
     }
 
@@ -47,23 +51,13 @@ namespace Alejof.Notes.Handlers.Content
 
         public async Task<Response> Handle(Request request, CancellationToken cancellationToken)
         {
-            var items = await GetContentItems(request.TenantId);
+            var tasks = (
+                _container.ListBlobsSegmentedAsync($"{request.TenantId}/", null),
+                _noteTable.ScanAsync<NoteEntity>(request.TenantId),
+                _dataTable.ScanAsync<DataEntity>(request.TenantId));
 
-            return new Response(
-                request.Format switch
-                {
-                    ContentFormat.File => ItemsAsFileFormat(items),
-                    ContentFormat.Json => await ItemsAsJsonFormat(items, request.TenantId),
-                    // Unrecognized format
-                    _ => Enumerable.Empty<BaseContentModel>(),
-                });
-        }
-
-        public async Task<IEnumerable<(Uri Url, string SASToken, string Path)>> GetContentItems(string tenantId)
-        {
-            // Enumerate blobs
-            var blobItems = await _container.ListBlobsSegmentedAsync($"{tenantId}/", null);
-            var blobs = blobItems.Results.OfType<CloudBlockBlob>();
+            await Task.WhenAll(tasks.Item1, tasks.Item2, tasks.Item3);
+            var (items, notes, data) = (tasks.Item1.Result, tasks.Item2.Result, tasks.Item3.Result);
 
             // Build SAS with 15-minute expiration
             var adHocSAPolicy = new SharedAccessBlobPolicy()
@@ -71,65 +65,34 @@ namespace Alejof.Notes.Handlers.Content
                 SharedAccessExpiryTime = DateTime.UtcNow.AddMinutes(5),
                 Permissions = SharedAccessBlobPermissions.Read
             };
-
-            return blobs
-                .Select(item => {
-                    // Generate the shared access signature on the blob, setting the constraints directly on the signature.
-                    var sasBlobToken = item.GetSharedAccessSignature(adHocSAPolicy);
-                    return (item.Uri, sasBlobToken, item.Name);
-                });
-        }
-
-        public IEnumerable<BaseContentModel> ItemsAsFileFormat(IEnumerable<(Uri Url, string SASToken, string Path)> items)
-            => items.Select(
-                i => new JekyllContentModel
-                {
-                    Url = i.Url + i.SASToken,
-                    Name = Path.GetFileName(i.Path),
-                });
-
-        public async Task<IEnumerable<BaseContentModel>> ItemsAsJsonFormat(IEnumerable<(Uri Url, string SASToken, string Path)> items, string tenantId)
-        {
-            var tasks = (
-                _noteTable.ScanAsync<NoteEntity>(tenantId),
-                _dataTable.ScanAsync<DataEntity>(tenantId));
-
-            await Task.WhenAll(tasks.Item1, tasks.Item2);
-            var (notes, data) = (tasks.Item1.Result, tasks.Item2.Result);
             
-            return (
-                    from item in items
+            return new Response(
+                    (from item in (items.Results.OfType<CloudBlockBlob>())
                         join note in notes
-                            on item.Url.ToString() equals note.PublishedBlobUri
+                            on item.Uri.ToString() equals note.PublishedBlobUri
                         join d in data
                             on note.RowKey equals d.NoteId into dataItems
                     select (item, note, dataItems))
                 .Select(
-                    x =>  new JsonContentModel
+                    x => new ContentModel
                     {
-                        Url = x.item.Url + x.item.SASToken,
+                        Url = x.item.Uri + x.item.GetSharedAccessSignature(adHocSAPolicy),
+                        Date = x.note.PublishedDate,
                         Slug = x.note.Slug,
                         Title = x.note.Title,
                         Data = x.dataItems
                             .ToDictionary(
                                 keySelector: d => d.Name.Camelize(),
                                 elementSelector: d => d.Value),
-                    });
+                    })
+                .OrderByDescending(x => x?.Date));
         }
     }
 
-    public class BaseContentModel
+    public class ContentModel
     {
         public string Url { get; set; } = string.Empty;
-    }
-
-    public class JekyllContentModel : BaseContentModel
-    {
-        public string Name { get; set; } = string.Empty;
-    }
-
-    public class JsonContentModel : BaseContentModel
-    {
+        public string? Date { get; set; }
         public string? Slug { get; set; }
         public string? Title { get; set; }
         public Dictionary<string, string?> Data { get; set; } = new Dictionary<string, string?>();
