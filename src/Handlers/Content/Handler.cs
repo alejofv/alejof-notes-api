@@ -72,6 +72,7 @@ namespace Alejof.Notes.Handlers.Content
                             on item.Uri.ToString() equals note.PublishedBlobUri
                         join d in data
                             on note.RowKey equals d.NoteId into dataItems
+                        where note.IsPublished
                     select (item, note, dataItems))
                 .Select(
                     x => new ContentModel
