@@ -12,8 +12,9 @@ namespace Alejof.Notes
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            builder.Services.AddNotesStorage();
-            builder.Services.AddEnvironmentSettings();
+            builder.Services
+                .AddNotesStorage()
+                .AddEnvironmentSettings();
             
             // Function dependencies
             builder.Services.AddScoped<Auth.Authenticator>();
